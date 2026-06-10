@@ -1,4 +1,4 @@
-import type { Rune, ElementType, Enemy, Spell, EnergyPool, SpecialTileConfig, ComboSpell, StatusEffect, StatusEffectType } from '../types';
+import type { Rune, ElementType, Enemy, Spell, EnergyPool, SpecialTileConfig, ComboSpell, StatusEffect, StatusEffectType, TerrainCell, TerrainConfig, TerrainType } from '../types';
 import { ELEMENT_COLORS, GRID_SIZE } from '../types';
 
 const ELEMENTS: ElementType[] = ['fire', 'water', 'grass', 'thunder'];
@@ -11,7 +11,7 @@ export const getRandomElement = (): ElementType => {
   return ELEMENTS[Math.floor(Math.random() * ELEMENTS.length)];
 };
 
-export const createRune = (row: number, col: number, isNew = false, tileType: Rune['tileType'] = 'normal', frozenHitCount = 0, doubleEnergyTurnsLeft = 0): Rune => ({
+export const createRune = (row: number, col: number, isNew = false, tileType: Rune['tileType'] = 'normal', frozenHitCount = 0, doubleEnergyTurnsLeft = 0, burnMarked = false, terrainFrozenTurns = 0): Rune => ({
   id: generateId(),
   element: getRandomElement(),
   row,
@@ -22,6 +22,8 @@ export const createRune = (row: number, col: number, isNew = false, tileType: Ru
   tileType,
   frozenHitCount,
   doubleEnergyTurnsLeft,
+  burnMarked,
+  terrainFrozenTurns,
 });
 
 function shuffleArray<T>(array: T[]): T[] {
@@ -141,6 +143,7 @@ export const isDiagonalPathBlocked = (grid: Rune[][], rune1: Rune, rune2: Rune):
 
 export const canAddToSelection = (selectedRunes: Rune[], rune: Rune, grid: Rune[][]): boolean => {
   if (rune.tileType === 'obstacle' || rune.tileType === 'frozen') return false;
+  if (rune.terrainFrozenTurns && rune.terrainFrozenTurns > 0) return false;
 
   if (selectedRunes.length === 0) return true;
   
@@ -600,4 +603,213 @@ export const calculateComboDamageWithResistanceEffect = (
   }
   
   return { damage: Math.max(1, damage), isEffective, isWeak };
+};
+
+export const createTerrainGrid = (
+  specialConfig?: SpecialTileConfig,
+  terrainConfig?: Partial<TerrainConfig>,
+  gridSize: number = GRID_SIZE
+): TerrainCell[][] => {
+  const terrainGrid: TerrainCell[][] = [];
+  for (let row = 0; row < gridSize; row++) {
+    terrainGrid[row] = [];
+    for (let col = 0; col < gridSize; col++) {
+      terrainGrid[row][col] = { type: null, age: 0 };
+    }
+  }
+
+  if (!terrainConfig) return terrainGrid;
+
+  const allPositions: { row: number; col: number }[] = [];
+  for (let row = 0; row < gridSize; row++) {
+    for (let col = 0; col < gridSize; col++) {
+      if (terrainGrid[row][col].type === null) {
+        allPositions.push({ row, col });
+      }
+    }
+  }
+  const shuffled = shuffleArray(allPositions);
+
+  const obstacleSet = new Set<string>();
+  if (specialConfig) {
+    const obstaclePositions: { row: number; col: number }[] = [];
+    for (let row = 0; row < gridSize; row++) {
+      for (let col = 0; col < gridSize; col++) {
+        obstaclePositions.push({ row, col });
+      }
+    }
+    const shuffledObs = shuffleArray(obstaclePositions);
+    for (let i = 0; i < specialConfig.obstacle && i < shuffledObs.length; i++) {
+      obstacleSet.add(`${shuffledObs[i].row},${shuffledObs[i].col}`);
+    }
+  }
+
+  let idx = 0;
+  const tryPlaceTerrain = (count: number, type: TerrainType) => {
+    let placed = 0;
+    while (placed < count && idx < shuffled.length) {
+      const pos = shuffled[idx];
+      idx++;
+      const key = `${pos.row},${pos.col}`;
+      if (obstacleSet.has(key)) continue;
+      if (terrainGrid[pos.row][pos.col].type !== null) continue;
+      terrainGrid[pos.row][pos.col] = { type, age: 0 };
+      placed++;
+    }
+  };
+
+  tryPlaceTerrain(terrainConfig.magma || 0, 'magma');
+  tryPlaceTerrain(terrainConfig.frost || 0, 'frost');
+  tryPlaceTerrain(terrainConfig.thorns || 0, 'thorns');
+  tryPlaceTerrain(terrainConfig.storm || 0, 'storm');
+
+  return terrainGrid;
+};
+
+export const spreadMagma = (
+  terrainGrid: TerrainCell[][],
+  runeGrid: Rune[][],
+  spreadChance: number = 0.5,
+  gridSize: number = GRID_SIZE
+): TerrainCell[][] => {
+  const newTerrain = terrainGrid.map(row => row.map(cell => ({ ...cell, hasSpreadThisTurn: false })));
+
+  const magmaCells: { row: number; col: number }[] = [];
+  for (let row = 0; row < gridSize; row++) {
+    for (let col = 0; col < gridSize; col++) {
+      if (newTerrain[row][col].type === 'magma') {
+        magmaCells.push({ row, col });
+      }
+    }
+  }
+
+  for (const { row, col } of magmaCells) {
+    if (newTerrain[row][col].age < 1) continue;
+
+    const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+    for (const [dr, dc] of directions) {
+      const nr = row + dr;
+      const nc = col + dc;
+      if (nr < 0 || nr >= gridSize || nc < 0 || nc >= gridSize) continue;
+      if (newTerrain[nr][nc].type !== null) continue;
+      if (runeGrid[nr][nc].tileType === 'obstacle') continue;
+      if (Math.random() < spreadChance) {
+        newTerrain[nr][nc] = { type: 'magma', age: 0, hasSpreadThisTurn: true };
+      }
+    }
+  }
+
+  for (let row = 0; row < gridSize; row++) {
+    for (let col = 0; col < gridSize; col++) {
+      if (newTerrain[row][col].type === 'magma') {
+        newTerrain[row][col].age++;
+      }
+    }
+  }
+
+  return newTerrain;
+};
+
+export const markMagmaBurn = (
+  runeGrid: Rune[][],
+  terrainGrid: TerrainCell[][],
+  gridSize: number = GRID_SIZE
+): Rune[][] => {
+  const newGrid = runeGrid.map(row => row.map(rune => ({ ...rune })));
+  for (let row = 0; row < gridSize; row++) {
+    for (let col = 0; col < gridSize; col++) {
+      if (terrainGrid[row][col].type === 'magma') {
+        const rune = newGrid[row][col];
+        if (rune.tileType !== 'obstacle' && rune.tileType !== 'frozen') {
+          newGrid[row][col] = { ...rune, burnMarked: true };
+        }
+      }
+    }
+  }
+  return newGrid;
+};
+
+export const applyBurnedRunes = (
+  runeGrid: Rune[][],
+  gridSize: number = GRID_SIZE
+): { newGrid: Rune[][]; burnedCount: number } => {
+  let burnedCount = 0;
+  const newGrid = runeGrid.map(row => row.map(rune => {
+    if (rune.burnMarked && rune.tileType !== 'obstacle' && rune.tileType !== 'frozen') {
+      burnedCount++;
+      return { ...rune, element: getRandomElement(), burnMarked: false };
+    }
+    return { ...rune, burnMarked: false };
+  }));
+  return { newGrid, burnedCount };
+};
+
+export const applyFrostTerrainEffect = (
+  runeGrid: Rune[][],
+  terrainGrid: TerrainCell[][],
+  gridSize: number = GRID_SIZE
+): Rune[][] => {
+  const newGrid = runeGrid.map(row => row.map(rune => ({ ...rune })));
+  for (let row = 0; row < gridSize; row++) {
+    for (let col = 0; col < gridSize; col++) {
+      if (terrainGrid[row][col].type === 'frost') {
+        const rune = newGrid[row][col];
+        if (rune.tileType !== 'obstacle' && rune.tileType !== 'frozen') {
+          if (!rune.terrainFrozenTurns || rune.terrainFrozenTurns <= 0) {
+            newGrid[row][col] = { ...rune, terrainFrozenTurns: 2 };
+          }
+        }
+      }
+    }
+  }
+  return newGrid;
+};
+
+export const decrementTerrainFrozen = (
+  runeGrid: Rune[][],
+  gridSize: number = GRID_SIZE
+): Rune[][] => {
+  return runeGrid.map(row => row.map(rune => {
+    if (rune.terrainFrozenTurns && rune.terrainFrozenTurns > 0) {
+      return { ...rune, terrainFrozenTurns: rune.terrainFrozenTurns - 1 };
+    }
+    return { ...rune, terrainFrozenTurns: 0 };
+  }));
+};
+
+export const calculateThornsDamage = (
+  matchedRunes: Rune[],
+  terrainGrid: TerrainCell[][],
+  damagePerThorn: number = 5
+): number => {
+  let totalDamage = 0;
+  for (const rune of matchedRunes) {
+    if (terrainGrid[rune.row]?.[rune.col]?.type === 'thorns') {
+      totalDamage += damagePerThorn;
+    }
+  }
+  return totalDamage;
+};
+
+export const applyStormTerrainEffect = (
+  runeGrid: Rune[][],
+  terrainGrid: TerrainCell[][],
+  gridSize: number = GRID_SIZE
+): { newGrid: Rune[][]; changedCount: number } => {
+  let changedCount = 0;
+  const newGrid = runeGrid.map(row => row.map(rune => ({ ...rune })));
+  for (let row = 0; row < gridSize; row++) {
+    for (let col = 0; col < gridSize; col++) {
+      if (terrainGrid[row][col].type === 'storm') {
+        const rune = newGrid[row][col];
+        if (rune.tileType !== 'obstacle' && rune.tileType !== 'frozen') {
+          if (Math.random() < 0.7) {
+            changedCount++;
+            newGrid[row][col] = { ...rune, element: getRandomElement() };
+          }
+        }
+      }
+    }
+  }
+  return { newGrid, changedCount };
 };

@@ -36,6 +36,12 @@
       "frozen": 2,
       "doubleEnergy": 1,
       "doubleEnergyDuration": 3
+    },
+    "terrain": {
+      "thorns": 3,
+      "frost": 1,
+      "magma": 0,
+      "storm": 0
     }
   },
   {
@@ -75,6 +81,13 @@
       "frozen": 3,
       "doubleEnergy": 2,
       "doubleEnergyDuration": 3
+    },
+    "terrain": {
+      "magma": 4,
+      "thorns": 1,
+      "storm": 0,
+      "frost": 0,
+      "magmaSpreadChance": 0.6
     }
   },
   {
@@ -114,6 +127,12 @@
       "frozen": 4,
       "doubleEnergy": 2,
       "doubleEnergyDuration": 3
+    },
+    "terrain": {
+      "storm": 4,
+      "magma": 1,
+      "thorns": 1,
+      "frost": 0
     }
   },
   {
@@ -153,6 +172,12 @@
       "frozen": 4,
       "doubleEnergy": 3,
       "doubleEnergyDuration": 3
+    },
+    "terrain": {
+      "frost": 5,
+      "storm": 1,
+      "thorns": 0,
+      "magma": 0
     }
   },
   {
@@ -192,6 +217,13 @@
       "frozen": 5,
       "doubleEnergy": 3,
       "doubleEnergyDuration": 3
+    },
+    "terrain": {
+      "magma": 2,
+      "frost": 2,
+      "thorns": 2,
+      "storm": 2,
+      "magmaSpreadChance": 0.5
     }
   }
 ]

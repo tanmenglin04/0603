@@ -6,6 +6,22 @@ export type StatusEffectType = 'burn' | 'paralyze' | 'resistance_down';
 
 export type TileType = 'normal' | 'obstacle' | 'frozen' | 'double_energy';
 
+export type TerrainType = 'magma' | 'frost' | 'thorns' | 'storm';
+
+export interface TerrainCell {
+  type: TerrainType | null;
+  age: number;
+  hasSpreadThisTurn?: boolean;
+}
+
+export interface TerrainConfig {
+  magma: number;
+  frost: number;
+  thorns: number;
+  storm: number;
+  magmaSpreadChance?: number;
+}
+
 export type EnemyBehaviorType = 'charge' | 'defend' | 'summon' | 'berserk' | 'normal';
 
 export type EnemyAIPriority = 'aggressive' | 'defensive' | 'balanced' | 'tactical';
@@ -83,6 +99,8 @@ export interface Rune {
   tileType: TileType;
   frozenHitCount: number;
   doubleEnergyTurnsLeft: number;
+  burnMarked?: boolean;
+  terrainFrozenTurns?: number;
 }
 
 export interface EnergyPool {
@@ -169,6 +187,7 @@ export interface Level {
   stars: number[];
   background: string;
   specialTiles: SpecialTileConfig;
+  terrain?: Partial<TerrainConfig>;
 }
 
 export interface FloatingText {
@@ -190,6 +209,7 @@ export interface GameState {
   maxEnergy: number;
   gridSize: number;
   runeGrid: Rune[][];
+  terrainGrid: TerrainCell[][];
   selectedRunes: Rune[];
   enemy: Enemy | null;
   enemyUnits: CombatUnit[];
@@ -233,6 +253,7 @@ export interface GameActions {
   addMinion: (minion: Minion) => void;
   removeMinion: (minionId: string) => void;
   updateMinion: (minionId: string, updates: Partial<Minion>) => void;
+  processTerrainEffects: () => void;
 }
 
 export type GameStore = GameState & GameActions;
@@ -306,6 +327,27 @@ export const ELEMENT_ICONS: Record<ElementType, string> = {
   water: '💧',
   grass: '🌿',
   thunder: '⚡',
+};
+
+export const TERRAIN_NAMES: Record<TerrainType, string> = {
+  magma: '岩浆裂隙',
+  frost: '冰霜之地',
+  thorns: '荆棘丛',
+  storm: '雷暴云',
+};
+
+export const TERRAIN_ICONS: Record<TerrainType, string> = {
+  magma: '🌋',
+  frost: '❄️',
+  thorns: '🌵',
+  storm: '⛈️',
+};
+
+export const TERRAIN_COLORS: Record<TerrainType, string> = {
+  magma: '#ff4500',
+  frost: '#87ceeb',
+  thorns: '#228b22',
+  storm: '#9370db',
 };
 
 export const SPELLS: Spell[] = [

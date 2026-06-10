@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { GameStore, Rune, Spell, Level, EnergyPool, ComboSpell, Minion, CombatUnit, Enemy, ElementType, ComboElementType } from '../types';
+import type { GameStore, Rune, Spell, Level, EnergyPool, ComboSpell, Minion, CombatUnit, Enemy, ElementType, ComboElementType, TerrainCell } from '../types';
 import { DEFAULT_BEHAVIOR_STATE, GRID_SIZE } from '../types';
 import levelsData from '../data/levels.json';
 import {
@@ -20,6 +20,14 @@ import {
   getEffectiveAttackDamage,
   calculateDamageWithResistanceEffect,
   calculateComboDamageWithResistanceEffect,
+  createTerrainGrid,
+  spreadMagma,
+  markMagmaBurn,
+  applyBurnedRunes,
+  applyFrostTerrainEffect,
+  decrementTerrainFrozen,
+  calculateThornsDamage,
+  applyStormTerrainEffect,
 } from '../utils/gameLogic';
 import {
   decideEnemyBehavior,
@@ -103,6 +111,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   maxEnergy: 10,
   gridSize: GRID_SIZE,
   runeGrid: [],
+  terrainGrid: [],
   selectedRunes: [],
   enemy: null,
   enemyUnits: [],
@@ -163,6 +172,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       maxEnergy: level.maxEnergy,
       gridSize: GRID_SIZE,
       runeGrid: createRuneGrid(level.specialTiles, GRID_SIZE),
+      terrainGrid: createTerrainGrid(level.specialTiles, level.terrain, GRID_SIZE),
       selectedRunes: [],
       enemy,
       enemyUnits,
@@ -186,6 +196,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!isPlayerTurn || battleStatus !== 'playing' || isAnimating) return;
 
     if (rune.tileType === 'obstacle' || rune.tileType === 'frozen') return;
+    if (rune.terrainFrozenTurns && rune.terrainFrozenTurns > 0) return;
 
     const newGrid = get().runeGrid.map(row =>
       row.map(r => ({ ...r, isSelected: r.id === rune.id }))
@@ -296,7 +307,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   confirmMatch: () => {
-    const { selectedRunes, comboCount, isPlayerTurn, battleStatus, isAnimating } = get();
+    const { selectedRunes, comboCount, isPlayerTurn, battleStatus, isAnimating, terrainGrid, playerHp, playerMaxHp } = get();
     if (!isPlayerTurn || battleStatus !== 'playing' || isAnimating) return;
 
     if (selectedRunes.length < 3) {
@@ -311,9 +322,35 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const doubleEnergyInSelection = selectedRunes.filter(r => r.tileType === 'double_energy').length;
     const currentGridSize = get().gridSize;
 
+    const thornsDamage = calculateThornsDamage(selectedRunes, terrainGrid, 5);
+    let currentPlayerHp = playerHp;
+    if (thornsDamage > 0) {
+      currentPlayerHp = Math.max(0, currentPlayerHp - thornsDamage);
+      get().addFloatingText(`荆棘反伤 -${thornsDamage}`, 200, 380, 'thorns');
+      get().setScreenShake(true);
+      setTimeout(() => get().setScreenShake(false), 200);
+    }
+
     let grid = markMatchedRunes(get().runeGrid, selectedRunes);
     grid = processFrozenHits(grid, selectedRunes, currentGridSize);
-    set({ runeGrid: grid, selectedRunes: [] });
+    set({ runeGrid: grid, selectedRunes: [], playerHp: currentPlayerHp });
+
+    if (currentPlayerHp <= 0) {
+      const { currentLevelId, runeGrid } = get();
+      const updatedGrid = decrementDoubleEnergyTurns(runeGrid);
+      get().decrementCooldowns();
+      set({
+        playerHp: 0,
+        turn: get().turn + 1,
+        isPlayerTurn: true,
+        runeGrid: updatedGrid,
+        battleStatus: 'defeat',
+        isAnimating: false,
+      });
+      clearBattleProgress();
+      showDefeatNotification(levels.find(l => l.id === currentLevelId)?.name || '');
+      return;
+    }
 
     const energyGain = calculateEnergyGain(matchCount, comboCount, element, doubleEnergyInSelection);
     const currentEnergy = get().energy;
@@ -350,6 +387,32 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (chainMatches.length > 0) {
           currentCombo++;
           totalCombo++;
+
+          const chainThornsDamage = calculateThornsDamage(chainMatches, terrainGrid, 5);
+          if (chainThornsDamage > 0) {
+            const hpState = get().playerHp;
+            const newHp = Math.max(0, hpState - chainThornsDamage);
+            get().addFloatingText(`荆棘反伤 -${chainThornsDamage}`, 200, 380, 'thorns');
+            get().setScreenShake(true);
+            setTimeout(() => get().setScreenShake(false), 200);
+            set({ playerHp: newHp });
+
+            if (newHp <= 0) {
+              const { currentLevelId, runeGrid } = get();
+              const updatedGrid = decrementDoubleEnergyTurns(runeGrid);
+              get().decrementCooldowns();
+              set({
+                turn: get().turn + 1,
+                isPlayerTurn: true,
+                runeGrid: updatedGrid,
+                battleStatus: 'defeat',
+                isAnimating: false,
+              });
+              clearBattleProgress();
+              showDefeatNotification(levels.find(l => l.id === currentLevelId)?.name || '');
+              return;
+            }
+          }
 
           const chainDeBefore = saveDoubleEnergyCells(grid, currentGridSize);
           grid = processFrozenHits(grid, chainMatches, currentGridSize);
@@ -809,7 +872,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       clearBattleProgress();
       showDefeatNotification(levels.find(l => l.id === currentLevelId)?.name || '');
     } else {
-      get().saveProgress();
+      setTimeout(() => {
+        get().processTerrainEffects();
+        get().saveProgress();
+      }, 300);
     }
   },
 
@@ -888,6 +954,39 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   notifyVictory: (levelName: string) => {
     showVictoryNotification(levelName);
+  },
+
+  processTerrainEffects: () => {
+    const { runeGrid, terrainGrid, currentLevelId, gridSize, battleStatus } = get();
+    if (battleStatus !== 'playing') return;
+
+    const level = levels.find(l => l.id === currentLevelId);
+    const spreadChance = level?.terrain?.magmaSpreadChance ?? 0.5;
+
+    let newTerrain = terrainGrid;
+    let newGrid = runeGrid;
+
+    const { newGrid: burnedGrid, burnedCount } = applyBurnedRunes(newGrid, gridSize);
+    newGrid = burnedGrid;
+    if (burnedCount > 0) {
+      get().addFloatingText(`岩浆灼烧 ${burnedCount}个符文!`, 300, 280, 'magma');
+    }
+
+    newGrid = decrementTerrainFrozen(newGrid, gridSize);
+    newTerrain = spreadMagma(newTerrain, newGrid, spreadChance, gridSize);
+    newGrid = markMagmaBurn(newGrid, newTerrain, gridSize);
+    newGrid = applyFrostTerrainEffect(newGrid, newTerrain, gridSize);
+
+    const { newGrid: stormGrid, changedCount } = applyStormTerrainEffect(newGrid, newTerrain, gridSize);
+    newGrid = stormGrid;
+    if (changedCount > 0) {
+      get().addFloatingText(`雷暴扭曲 ${changedCount}个符文!`, 300, 300, 'storm');
+    }
+
+    set({
+      runeGrid: newGrid,
+      terrainGrid: newTerrain,
+    });
   },
 
   canCastSpell: (spell: Spell) => {
