@@ -3,7 +3,6 @@ import type { ElementType, RuneEquipment } from '../types';
 import { getSlotsForLevel, REROLL_COST } from '../types';
 import {
   loadEquipmentSave,
-  saveEquipmentSave,
   addGold as lsAddGold,
   spendGold as lsSpendGold,
   addToInventory as lsAddToInventory,
@@ -129,7 +128,11 @@ export const useEquipmentStore = create<EquipmentStore>((set, get) => ({
     if (!result) return null;
 
     try {
-      useAchievementStore.getState().recordEquipmentAcquired(result.quality);
+      const ach = useAchievementStore.getState();
+      for (const consumed of items) {
+        ach.recordEquipmentConsumed(consumed.quality);
+      }
+      ach.recordEquipmentAcquired(result.quality);
     } catch { /* non-critical */ }
 
     lsRemoveFromInventory(selectedUpgradeItems);
