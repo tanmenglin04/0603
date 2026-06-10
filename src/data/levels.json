@@ -1,0 +1,197 @@
+[
+  {
+    "id": 1,
+    "name": "史莱姆森林",
+    "description": "初入森林，遭遇史莱姆的袭击",
+    "background": "forest",
+    "enemy": {
+      "id": "slime",
+      "name": "绿色史莱姆",
+      "maxHp": 100,
+      "attack": 10,
+      "resistance": { "grass": 0.3 },
+      "attackPattern": [8, 10, 12, 10],
+      "sprite": "🟢",
+      "description": "一只普通的绿色史莱姆，对草系有抗性",
+      "aiConfig": {
+        "priority": "defensive",
+        "enabledBehaviors": ["normal", "defend"],
+        "chargeDamageMultiplier": 2.5,
+        "defendDamageReduction": 0.4,
+        "defendAttackPenalty": 0.3,
+        "summonCooldown": 4,
+        "minionBaseHp": 25,
+        "minionBaseAttack": 6,
+        "minionExplosionDamage": 20,
+        "berserkThreshold": 0.3,
+        "berserkAttackMultiplier": 1.8,
+        "berserkSelfDamagePerTurn": 3
+      }
+    },
+    "playerMaxHp": 100,
+    "maxEnergy": 10,
+    "stars": [100, 80, 50],
+    "specialTiles": {
+      "obstacle": 2,
+      "frozen": 2,
+      "doubleEnergy": 1,
+      "doubleEnergyDuration": 3
+    }
+  },
+  {
+    "id": 2,
+    "name": "火焰洞穴",
+    "description": "炽热的洞穴中，火焰精灵正在等待",
+    "background": "cave",
+    "enemy": {
+      "id": "fire-spirit",
+      "name": "火焰精灵",
+      "maxHp": 150,
+      "attack": 15,
+      "resistance": { "fire": 0.5, "water": -0.2 },
+      "attackPattern": [12, 15, 18, 15, 12],
+      "sprite": "🔥",
+      "description": "火焰的化身，对火系免疫但惧怕水系",
+      "aiConfig": {
+        "priority": "aggressive",
+        "enabledBehaviors": ["normal", "charge", "berserk"],
+        "chargeDamageMultiplier": 2.8,
+        "defendDamageReduction": 0.5,
+        "defendAttackPenalty": 0.3,
+        "summonCooldown": 4,
+        "minionBaseHp": 25,
+        "minionBaseAttack": 8,
+        "minionExplosionDamage": 25,
+        "berserkThreshold": 0.3,
+        "berserkAttackMultiplier": 2.2,
+        "berserkSelfDamagePerTurn": 6
+      }
+    },
+    "playerMaxHp": 120,
+    "maxEnergy": 12,
+    "stars": [120, 100, 70],
+    "specialTiles": {
+      "obstacle": 3,
+      "frozen": 3,
+      "doubleEnergy": 2,
+      "doubleEnergyDuration": 3
+    }
+  },
+  {
+    "id": 3,
+    "name": "雷霆峡谷",
+    "description": "电闪雷鸣的峡谷，雷元素生物肆虐",
+    "background": "canyon",
+    "enemy": {
+      "id": "thunder-elemental",
+      "name": "雷霆元素",
+      "maxHp": 180,
+      "attack": 18,
+      "resistance": { "thunder": 0.4, "grass": 0.2 },
+      "attackPattern": [15, 20, 18, 22, 15],
+      "sprite": "⚡",
+      "description": "由纯粹雷电构成的元素生物，攻击力强大",
+      "aiConfig": {
+        "priority": "balanced",
+        "enabledBehaviors": ["normal", "charge", "defend", "berserk"],
+        "chargeDamageMultiplier": 2.5,
+        "defendDamageReduction": 0.45,
+        "defendAttackPenalty": 0.3,
+        "summonCooldown": 4,
+        "minionBaseHp": 28,
+        "minionBaseAttack": 9,
+        "minionExplosionDamage": 28,
+        "berserkThreshold": 0.3,
+        "berserkAttackMultiplier": 2,
+        "berserkSelfDamagePerTurn": 5
+      }
+    },
+    "playerMaxHp": 130,
+    "maxEnergy": 14,
+    "stars": [150, 120, 80],
+    "specialTiles": {
+      "obstacle": 4,
+      "frozen": 4,
+      "doubleEnergy": 2,
+      "doubleEnergyDuration": 3
+    }
+  },
+  {
+    "id": 4,
+    "name": "深海遗迹",
+    "description": "古老的海底遗迹，水之守护者在此沉睡",
+    "background": "ocean",
+    "enemy": {
+      "id": "water-guardian",
+      "name": "深海守护者",
+      "maxHp": 220,
+      "attack": 20,
+      "resistance": { "water": 0.5, "fire": -0.3, "thunder": -0.2 },
+      "attackPattern": [18, 22, 25, 22, 18, 20],
+      "sprite": "🐉",
+      "description": "古老的海龙，水系的终极守护者",
+      "aiConfig": {
+        "priority": "tactical",
+        "enabledBehaviors": ["normal", "defend", "summon", "berserk"],
+        "chargeDamageMultiplier": 2.5,
+        "defendDamageReduction": 0.5,
+        "defendAttackPenalty": 0.25,
+        "summonCooldown": 3,
+        "minionBaseHp": 35,
+        "minionBaseAttack": 10,
+        "minionExplosionDamage": 30,
+        "berserkThreshold": 0.3,
+        "berserkAttackMultiplier": 2,
+        "berserkSelfDamagePerTurn": 5
+      }
+    },
+    "playerMaxHp": 150,
+    "maxEnergy": 16,
+    "stars": [200, 150, 100],
+    "specialTiles": {
+      "obstacle": 5,
+      "frozen": 4,
+      "doubleEnergy": 3,
+      "doubleEnergyDuration": 3
+    }
+  },
+  {
+    "id": 5,
+    "name": "暗黑城堡",
+    "description": "最终的挑战，暗黑领主已经等候多时",
+    "background": "castle",
+    "enemy": {
+      "id": "dark-lord",
+      "name": "暗黑领主",
+      "maxHp": 300,
+      "attack": 25,
+      "resistance": { "fire": 0.2, "water": 0.2, "grass": 0.2, "thunder": 0.2 },
+      "attackPattern": [20, 25, 30, 35, 30, 25, 20],
+      "sprite": "👹",
+      "description": "黑暗的统治者，对所有元素都有一定抗性",
+      "aiConfig": {
+        "priority": "tactical",
+        "enabledBehaviors": ["normal", "charge", "defend", "summon", "berserk"],
+        "chargeDamageMultiplier": 3,
+        "defendDamageReduction": 0.55,
+        "defendAttackPenalty": 0.25,
+        "summonCooldown": 3,
+        "minionBaseHp": 40,
+        "minionBaseAttack": 12,
+        "minionExplosionDamage": 35,
+        "berserkThreshold": 0.3,
+        "berserkAttackMultiplier": 2.5,
+        "berserkSelfDamagePerTurn": 8
+      }
+    },
+    "playerMaxHp": 180,
+    "maxEnergy": 20,
+    "stars": [300, 200, 150],
+    "specialTiles": {
+      "obstacle": 6,
+      "frozen": 5,
+      "doubleEnergy": 3,
+      "doubleEnergyDuration": 3
+    }
+  }
+]
