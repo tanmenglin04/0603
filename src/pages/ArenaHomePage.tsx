@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useArenaStore } from '../store/useArenaStore';
 import {
@@ -55,12 +55,23 @@ export const ArenaHomePage: React.FC = () => {
   const [battleCode, setBattleCode] = useState('');
   const [battleCodeError, setBattleCodeError] = useState('');
 
+  const initializedRef = useRef(false);
+
   useEffect(() => {
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+
     initializeArena();
-    if (!currentProfile) {
-      createOrUpdateProfile('玩家');
-    }
-  }, [initializeArena, createOrUpdateProfile, currentProfile]);
+
+    const timer = setTimeout(() => {
+      const state = useArenaStore.getState();
+      if (!state.currentProfile) {
+        state.createOrUpdateProfile('玩家');
+      }
+    }, 50);
+
+    return () => clearTimeout(timer);
+  }, [initializeArena]);
 
   if (!currentProfile) {
     return (

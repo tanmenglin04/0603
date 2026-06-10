@@ -22,65 +22,91 @@ const generateSignature = (payload: Omit<BattleCodePayload, 'signature'>): strin
   return simpleHash(dataStr);
 };
 
-const base64Encode = (str: string): string => {
+const textToHex = (str: string): string => {
   try {
-    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) => {
-      return String.fromCharCode(parseInt(p1, 16));
-    }));
-  } catch {
-    return '';
-  }
-};
-
-const base64Decode = (str: string): string => {
-  try {
-    return decodeURIComponent(Array.prototype.map.call(atob(str), (c) => {
-      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-    }).join(''));
-  } catch {
-    return '';
-  }
-};
-
-const compressBattleCode = (code: string): string => {
-  let result = '';
-  let count = 1;
-  for (let i = 1; i <= code.length; i++) {
-    if (i < code.length && code[i] === code[i - 1]) {
-      count++;
-    } else {
-      result += code[i - 1];
-      if (count > 1) {
-        result += count.toString(36);
-      }
-      count = 1;
+    const encoder = new TextEncoder();
+    const bytes = encoder.encode(str);
+    let hex = '';
+    for (let i = 0; i < bytes.length; i++) {
+      hex += bytes[i].toString(16).padStart(2, '0');
     }
+    return hex.toUpperCase();
+  } catch {
+    let hex = '';
+    for (let i = 0; i < str.length; i++) {
+      const code = str.charCodeAt(i);
+      if (code < 128) {
+        hex += code.toString(16).padStart(2, '0');
+      } else if (code < 2048) {
+        hex += (0xc0 | (code >> 6)).toString(16);
+        hex += (0x80 | (code & 0x3f)).toString(16);
+      } else {
+        hex += (0xe0 | (code >> 12)).toString(16);
+        hex += (0x80 | ((code >> 6) & 0x3f)).toString(16);
+        hex += (0x80 | (code & 0x3f)).toString(16);
+      }
+    }
+    return hex.toUpperCase();
+  }
+};
+
+const hexToText = (hex: string): string => {
+  try {
+    const normalized = hex.toUpperCase().replace(/[^0-9A-F]/g, '');
+    if (normalized.length % 2 !== 0) return '';
+
+    const bytes = new Uint8Array(normalized.length / 2);
+    for (let i = 0; i < bytes.length; i++) {
+      bytes[i] = parseInt(normalized.substr(i * 2, 2), 16);
+    }
+    const decoder = new TextDecoder('utf-8');
+    return decoder.decode(bytes);
+  } catch {
+    return '';
+  }
+};
+
+const compressHex = (hex: string): string => {
+  let result = '';
+  let i = 0;
+  while (i < hex.length) {
+    let count = 1;
+    const current = hex[i];
+    while (i + count < hex.length && hex[i + count] === current && count < 15) {
+      count++;
+    }
+    if (count >= 3) {
+      result += 'G' + (count - 3).toString(16) + current;
+    } else {
+      result += current.repeat(count);
+    }
+    i += count;
   }
   return result;
 };
 
-const decompressBattleCode = (code: string): string => {
+const decompressHex = (compressed: string): string => {
   let result = '';
   let i = 0;
-  while (i < code.length) {
-    const char = code[i];
-    result += char;
+  while (i < compressed.length) {
+    if (compressed[i] === 'G' && i + 2 < compressed.length) {
+      const countHex = compressed[i + 1];
+      const char = compressed[i + 2];
+      if (/[0-9A-F]/.test(countHex) && /[0-9A-F]/.test(char)) {
+        const count = parseInt(countHex, 16) + 3;
+        result += char.repeat(count);
+        i += 3;
+        continue;
+      }
+    }
+    result += compressed[i];
     i++;
-    let numStr = '';
-    while (i < code.length && /[0-9a-z]/.test(code[i])) {
-      numStr += code[i];
-      i++;
-    }
-    if (numStr) {
-      const count = parseInt(numStr, 36);
-      result += char.repeat(Math.max(0, count - 1));
-    }
   }
   return result;
 };
 
 const formatBattleCode = (rawCode: string): string => {
-  const cleaned = rawCode.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const cleaned = rawCode.toUpperCase().replace(/[^0-9A-FG]/g, '');
   const groups: string[] = [];
   for (let i = 0; i < cleaned.length; i += 5) {
     groups.push(cleaned.substr(i, 5));
@@ -114,8 +140,8 @@ export const generateBattleCode = (
   };
 
   const jsonStr = JSON.stringify(payload);
-  const encoded = base64Encode(jsonStr);
-  const compressed = compressBattleCode(encoded);
+  const hexEncoded = textToHex(jsonStr);
+  const compressed = compressHex(hexEncoded);
   const formatted = formatBattleCode(compressed);
 
   try {
@@ -158,12 +184,12 @@ const validateBattleCodePayload = (payload: BattleCodePayload): boolean => {
 export const parseBattleCode = (code: string): BattleCodePayload | null => {
   if (!code || typeof code !== 'string') return null;
 
-  const normalized = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const normalized = code.toUpperCase().replace(/[^0-9A-FG]/g, '');
 
   try {
     const cache = JSON.parse(localStorage.getItem(BATTLE_CODE_STORAGE_KEY) || '{}');
     for (const [cachedCode, cachedData] of Object.entries(cache)) {
-      const cachedNormalized = (cachedCode as string).toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const cachedNormalized = (cachedCode as string).toUpperCase().replace(/[^0-9A-FG]/g, '');
       if (cachedNormalized === normalized) {
         const data = cachedData as { payload: BattleCodePayload; expiresAt: number };
         if (Date.now() < data.expiresAt && validateBattleCodePayload(data.payload)) {
@@ -174,8 +200,9 @@ export const parseBattleCode = (code: string): BattleCodePayload | null => {
   } catch {}
 
   try {
-    const decompressed = decompressBattleCode(normalized);
-    const decoded = base64Decode(decompressed);
+    const decompressed = decompressHex(normalized);
+    if (!decompressed) return null;
+    const decoded = hexToText(decompressed);
     if (!decoded) return null;
 
     const payload = JSON.parse(decoded) as BattleCodePayload;
