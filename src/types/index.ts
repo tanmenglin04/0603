@@ -683,3 +683,355 @@ export const BLESSING_RARITY_WEIGHTS: Record<string, [number, number, number]> =
 export const TOWER_TOTAL_FLOORS = 50;
 export const TOWER_CAMP_INTERVAL = 3;
 export const TOWER_BOSS_INTERVAL = 10;
+
+// ============== 竞技场 PVP 系统类型定义 ==============
+
+export type RankTier = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' | 'master' | 'grandmaster' | 'king' | 'legend' | '王者';
+
+export interface RankConfig {
+  tier: RankTier;
+  name: string;
+  minPoints: number;
+  maxPoints: number;
+  icon: string;
+  color: string;
+  starsRequired: number;
+}
+
+export const RANK_CONFIGS: RankConfig[] = [
+  { tier: 'bronze', name: '青铜', minPoints: 0, maxPoints: 149, icon: '🥉', color: '#cd7f32', starsRequired: 5 },
+  { tier: 'silver', name: '白银', minPoints: 150, maxPoints: 399, icon: '🥈', color: '#c0c0c0', starsRequired: 5 },
+  { tier: 'gold', name: '黄金', minPoints: 400, maxPoints: 749, icon: '🥇', color: '#ffd700', starsRequired: 5 },
+  { tier: 'platinum', name: '铂金', minPoints: 750, maxPoints: 1199, icon: '💎', color: '#e5e4e2', starsRequired: 5 },
+  { tier: 'diamond', name: '钻石', minPoints: 1200, maxPoints: 1799, icon: '💠', color: '#b9f2ff', starsRequired: 5 },
+  { tier: 'master', name: '大师', minPoints: 1800, maxPoints: 2499, icon: '🏆', color: '#9966cc', starsRequired: 5 },
+  { tier: 'grandmaster', name: '宗师', minPoints: 2500, maxPoints: 3299, icon: '👑', color: '#ff6b6b', starsRequired: 5 },
+  { tier: 'king', name: '王者', minPoints: 3300, maxPoints: 4199, icon: '🏅', color: '#ff4757', starsRequired: 5 },
+  { tier: 'legend', name: '传奇', minPoints: 4200, maxPoints: 999999, icon: '🌟', color: '#ffa502', starsRequired: 0 },
+];
+
+export const getRankByPoints = (points: number): RankConfig => {
+  for (let i = RANK_CONFIGS.length - 1; i >= 0; i--) {
+    if (points >= RANK_CONFIGS[i].minPoints) return RANK_CONFIGS[i];
+  }
+  return RANK_CONFIGS[0];
+};
+
+export interface RankStars {
+  tier: RankTier;
+  stars: number;
+  consecutiveWins: number;
+}
+
+export type DefenderAIStyle = 'aggressive' | 'defensive' | 'balanced' | 'tactical' | 'random';
+
+export const DEFENDER_AI_STYLE_NAMES: Record<DefenderAIStyle, string> = {
+  aggressive: '激进进攻',
+  defensive: '保守防御',
+  balanced: '均衡型',
+  tactical: '战术型',
+  random: '随机应变',
+};
+
+export const DEFENDER_AI_STYLE_DESC: Record<DefenderAIStyle, string> = {
+  aggressive: '优先选择高伤害消除和攻击法术，不惜牺牲血量',
+  defensive: '优先治疗和防御，积累能量后释放大法术',
+  balanced: '攻守兼备，根据局势灵活调整策略',
+  tactical: '注重连消和Combo法术，追求最大收益',
+  random: '决策带有随机性，难以预测',
+};
+
+export interface DefenderLoadout {
+  id: string;
+  name: string;
+  createdAt: number;
+  equippedRunes: Partial<Record<ElementType, (string | null)[]>>;
+  selectedSpellIds: string[];
+  aiStyle: DefenderAIStyle;
+  aiConfig: Partial<EnemyAIConfig>;
+  playerMaxHp: number;
+  description?: string;
+}
+
+export interface ArenaPlayerProfile {
+  playerId: string;
+  playerName: string;
+  avatar: string;
+  currentRank: RankTier;
+  currentStars: number;
+  rankPoints: number;
+  highestRank: RankTier;
+  highestPoints: number;
+  totalWins: number;
+  totalLosses: number;
+  totalDraws: number;
+  winStreak: number;
+  bestWinStreak: number;
+  seasonsPlayed: number;
+  currentLoadoutId: string | null;
+  loadouts: DefenderLoadout[];
+  unlockedAvatarFrames: string[];
+  equippedAvatarFrame: string | null;
+}
+
+export interface SeasonInfo {
+  seasonId: string;
+  seasonNumber: number;
+  name: string;
+  startDate: number;
+  endDate: number;
+  isActive: boolean;
+  rewardsDistributed: boolean;
+  pointDecayRate: number;
+  description: string;
+}
+
+export interface AvatarFrameReward {
+  id: string;
+  name: string;
+  minRank: RankTier;
+  icon: string;
+  borderColor: string;
+  bgColor: string;
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+}
+
+export const AVATAR_FRAME_REWARDS: AvatarFrameReward[] = [
+  { id: 'frame_bronze', name: '青铜框', minRank: 'bronze', icon: '🥉', borderColor: '#cd7f32', bgColor: 'rgba(205,127,50,0.2)', rarity: 'common' },
+  { id: 'frame_silver', name: '白银框', minRank: 'silver', icon: '🥈', borderColor: '#c0c0c0', bgColor: 'rgba(192,192,192,0.2)', rarity: 'common' },
+  { id: 'frame_gold', name: '黄金框', minRank: 'gold', icon: '🥇', borderColor: '#ffd700', bgColor: 'rgba(255,215,0,0.2)', rarity: 'rare' },
+  { id: 'frame_platinum', name: '铂金框', minRank: 'platinum', icon: '💎', borderColor: '#e5e4e2', bgColor: 'rgba(229,228,226,0.2)', rarity: 'rare' },
+  { id: 'frame_diamond', name: '钻石框', minRank: 'diamond', icon: '💠', borderColor: '#b9f2ff', bgColor: 'rgba(185,242,255,0.2)', rarity: 'epic' },
+  { id: 'frame_master', name: '大师框', minRank: 'master', icon: '🏆', borderColor: '#9966cc', bgColor: 'rgba(153,102,204,0.2)', rarity: 'epic' },
+  { id: 'frame_grandmaster', name: '宗师框', minRank: 'grandmaster', icon: '👑', borderColor: '#ff6b6b', bgColor: 'rgba(255,107,107,0.2)', rarity: 'legendary' },
+  { id: 'frame_king', name: '王者框', minRank: 'king', icon: '🏅', borderColor: '#ff4757', bgColor: 'rgba(255,71,87,0.2)', rarity: 'legendary' },
+  { id: 'frame_legend', name: '传奇框', minRank: 'legend', icon: '🌟', borderColor: '#ffa502', bgColor: 'rgba(255,165,2,0.3)', rarity: 'legendary' },
+];
+
+export interface BattleRecord {
+  battleId: string;
+  seasonId: string;
+  attackerPlayerId: string;
+  attackerName: string;
+  defenderPlayerId: string;
+  defenderName: string;
+  defenderLoadoutId: string;
+  battleCode: string;
+  result: 'attacker_win' | 'defender_win' | 'draw' | 'timeout';
+  attackerHpRemaining: number;
+  defenderHpRemaining: number;
+  totalTurns: number;
+  durationMs: number;
+  startedAt: number;
+  endedAt: number;
+  attackerPointsChange: number;
+  defenderPointsChange: number;
+  isRated: boolean;
+  replayData: BattleReplayData | null;
+  timeoutSide?: 'attacker' | 'defender';
+}
+
+export interface ReplayAction {
+  turn: number;
+  side: 'attacker' | 'defender';
+  actionType: 'match_runes' | 'cast_spell' | 'cast_combo_spell' | 'end_turn';
+  timestamp: number;
+  payload: any;
+  hpAfter: { attacker: number; defender: number };
+  energyAfter: EnergyPool;
+  description: string;
+}
+
+export interface BattleReplayData {
+  battleId: string;
+  defenderLoadoutSnapshot: DefenderLoadout;
+  attackerSpells: string[];
+  initialState: {
+    attackerHp: number;
+    defenderHp: number;
+    attackerMaxHp: number;
+    defenderMaxHp: number;
+  };
+  actions: ReplayAction[];
+  finalState: {
+    attackerHp: number;
+    defenderHp: number;
+    result: BattleRecord['result'];
+  };
+  recordedAt: number;
+}
+
+export interface PVPBattleState {
+  battleId: string;
+  battleCode: string;
+  mode: 'offense' | 'defense';
+  isStarted: boolean;
+  isFinished: boolean;
+  turn: number;
+  isPlayerTurn: boolean;
+  playerHp: number;
+  playerMaxHp: number;
+  enemyHp: number;
+  enemyMaxHp: number;
+  playerEnergy: EnergyPool;
+  enemyEnergy: EnergyPool;
+  maxEnergy: number;
+  gridSize: number;
+  runeGrid: Rune[][];
+  selectedRunes: Rune[];
+  playerSpells: Spell[];
+  enemySpells: Spell[];
+  comboSpellCooldowns: Record<string, number>;
+  enemyComboSpellCooldowns: Record<string, number>;
+  statusEffects: {
+    player: StatusEffect[];
+    enemy: StatusEffect[];
+  };
+  battleStatus: BattleStatus;
+  isAnimating: boolean;
+  floatingTexts: FloatingText[];
+  screenShake: boolean;
+  spellEffect: ElementType | ComboElementType | null;
+  comboCount: number;
+  lastActionTime: number;
+  timeoutMs: number;
+  defenderAIStyle: DefenderAIStyle;
+  isRecordingReplay: boolean;
+  replayActions: ReplayAction[];
+  battleStartTime: number;
+}
+
+export interface LeaderboardEntry {
+  playerId: string;
+  playerName: string;
+  avatar: string;
+  avatarFrame: string | null;
+  rank: number;
+  tier: RankTier;
+  rankPoints: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  winStreak: number;
+}
+
+export interface SeasonResult {
+  seasonId: string;
+  playerId: string;
+  finalRank: RankTier;
+  finalPoints: number;
+  finalPosition: number;
+  rewards: {
+    avatarFrames: string[];
+    gold: number;
+  };
+  rankDecayApplied: number;
+  nextSeasonStartingPoints: number;
+}
+
+export interface ScheduledTask {
+  taskId: string;
+  taskType: 'season_end' | 'season_start' | 'point_decay' | 'reward_distribution';
+  executeAt: number;
+  isCompleted: boolean;
+  payload: any;
+  createdAt: number;
+  completedAt?: number;
+}
+
+export type BattleCodeVersion = 'v1';
+
+export interface BattleCodePayload {
+  version: BattleCodeVersion;
+  playerId: string;
+  playerName: string;
+  loadoutId: string;
+  loadout: DefenderLoadout;
+  rankPoints: number;
+  currentRank: RankTier;
+  timestamp: number;
+  signature: string;
+}
+
+export const BATTLE_TIMEOUT_MS = 120000;
+export const TURN_TIMEOUT_MS = 30000;
+export const POINT_DECAY_RATE_PER_WEEK = 50;
+export const WIN_POINTS_BASE = 25;
+export const LOSS_POINTS_BASE = 15;
+export const DRAW_POINTS_BASE = 8;
+export const WIN_STREAK_BONUS_PER_WIN = 3;
+export const MAX_WIN_STREAK_BONUS = 15;
+
+export interface ArenaStoreState {
+  currentProfile: ArenaPlayerProfile | null;
+  currentSeason: SeasonInfo | null;
+  currentLoadout: DefenderLoadout | null;
+  battleHistory: BattleRecord[];
+  leaderboard: LeaderboardEntry[];
+  pendingTasks: ScheduledTask[];
+  seasonResults: SeasonResult[];
+  isLoading: boolean;
+  error: string | null;
+  currentBattle: PVPBattleState | null;
+  activeReplay: BattleReplayData | null;
+}
+
+export interface ArenaStoreActions {
+  initializeArena: () => void;
+  createOrUpdateProfile: (name: string) => void;
+  createLoadout: (name: string) => DefenderLoadout;
+  updateLoadout: (loadoutId: string, updates: Partial<DefenderLoadout>) => void;
+  deleteLoadout: (loadoutId: string) => void;
+  setActiveLoadout: (loadoutId: string) => void;
+  generateBattleCode: (loadoutId: string) => string;
+  parseBattleCode: (code: string) => BattleCodePayload | null;
+  startOffensiveBattle: (battleCode: string) => boolean;
+  startPracticeBattle: () => void;
+  finishPVPBattle: (result: BattleRecord['result'], replayData?: BattleReplayData) => void;
+  updateRankPoints: (pointsChange: number) => RankStars;
+  checkRankPromotion: () => { promoted: boolean; newTier?: RankTier };
+  checkRankDemotion: () => { demoted: boolean; newTier?: RankTier };
+  getLeaderboard: (limit?: number) => LeaderboardEntry[];
+  getBattleHistory: (limit?: number) => BattleRecord[];
+  startReplay: (battleId: string) => BattleReplayData | null;
+  checkSeasonTransition: () => { seasonChanged: boolean; result?: SeasonResult };
+  executeScheduledTasks: () => void;
+  forceEndCurrentSeason: () => void;
+  getAvatarFrameById: (frameId: string) => AvatarFrameReward | undefined;
+  equipAvatarFrame: (frameId: string | null) => void;
+  cleanupOldBattles: (daysToKeep?: number) => void;
+  calculatePointsChange: (opponentPoints: number, result: BattleRecord['result']) => number;
+  saveArenaData: () => void;
+  loadArenaData: () => void;
+  resetCurrentBattle: () => void;
+}
+
+export type ArenaStore = ArenaStoreState & ArenaStoreActions;
+
+export interface AIDecision {
+  type: 'match_runes' | 'cast_spell' | 'cast_combo_spell' | 'end_turn';
+  runes?: Rune[];
+  spell?: Spell;
+  comboSpell?: ComboSpell;
+  targetElement?: ElementType;
+  priority: number;
+  expectedValue: number;
+  reasoning: string;
+}
+
+export interface BattleConnectionState {
+  isConnected: boolean;
+  lastPingTime: number;
+  consecutiveTimeouts: number;
+  maxConsecutiveTimeouts: number;
+}
+
+export type ConnectionStatus = 'connected' | 'warning' | 'disconnected' | 'timeout';
+
+export interface NetworkMonitorState {
+  status: ConnectionStatus;
+  latency: number;
+  packetLoss: number;
+  lastSyncTime: number;
+}
+
