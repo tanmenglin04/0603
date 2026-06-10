@@ -47,8 +47,18 @@ import {
 import { showVictoryNotification, showDefeatNotification } from '../utils/notifications';
 import { getEquippedItems } from '../utils/localStorage';
 import { getEquipmentBonuses } from '../utils/runeEquipment';
+import { useAchievementStore } from './useAchievementStore';
 
 const levels: Level[] = levelsData as Level[];
+
+const trackVictory = (enemyId: string | undefined, enemyName: string | undefined) => {
+  try {
+    const ach = useAchievementStore.getState();
+    if (enemyId) ach.recordEnemyKilled(enemyId);
+    if (enemyName) ach.recordEnemyKilled(enemyName);
+    ach.recordBattleWon();
+  } catch {}
+};
 
 const initialEnergy: EnergyPool = {
   fire: 0,
@@ -325,6 +335,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const doubleEnergyInSelection = selectedRunes.filter(r => r.tileType === 'double_energy').length;
     const currentGridSize = get().gridSize;
 
+    try {
+      useAchievementStore.getState().recordRunesEliminated(element, matchCount);
+    } catch { /* achievement tracking is non-critical */ }
+
     const thornsDamage = calculateThornsDamage(selectedRunes, terrainGrid, 5);
     let currentPlayerHp = playerHp;
     if (thornsDamage > 0) {
@@ -428,6 +442,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
             
             Object.entries(result.matchedElements).forEach(([el, count]) => {
               if (count > 0) {
+                try {
+                  useAchievementStore.getState().recordRunesEliminated(el as ElementType, count);
+                } catch { /* non-critical */ }
                 const gain = calculateEnergyGain(count, currentCombo, el as keyof EnergyPool, result.doubleEnergyCount);
                 Object.entries(gain).forEach(([key, value]) => {
                   const k = key as keyof EnergyPool;
@@ -469,6 +486,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const target = getSelectedUnit(enemyUnits, selectedTargetId);
     if (!target) return;
+
+    try {
+      useAchievementStore.getState().recordSpellCast(spell.id);
+    } catch { /* non-critical */ }
 
     set({ isAnimating: true, spellEffect: spell.element });
 
@@ -568,6 +589,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const target = getSelectedUnit(enemyUnits, selectedTargetId);
     if (!target) return;
+
+    try {
+      useAchievementStore.getState().recordComboSpellCast(spell.id);
+    } catch { /* non-critical */ }
 
     set({ isAnimating: true, spellEffect: spell.elements });
 
@@ -956,6 +981,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   notifyVictory: (levelName: string) => {
+    const enemy = get().enemy;
+    trackVictory(enemy?.id, enemy?.name);
     showVictoryNotification(levelName);
   },
 

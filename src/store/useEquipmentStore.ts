@@ -20,6 +20,7 @@ import {
   rerollAffix,
   getEquipmentBonuses,
 } from '../utils/runeEquipment';
+import { useAchievementStore } from './useAchievementStore';
 
 interface EquipmentState {
   gold: number;
@@ -70,6 +71,10 @@ export const useEquipmentStore = create<EquipmentStore>((set, get) => ({
       return rewards[levelId] || 80;
     })();
     const equipment = generateRuneEquipment(levelId);
+
+    try {
+      useAchievementStore.getState().recordEquipmentAcquired(equipment.quality);
+    } catch { /* non-critical */ }
 
     const newGold = lsAddGold(goldReward);
     lsAddToInventory([equipment]);
@@ -122,6 +127,10 @@ export const useEquipmentStore = create<EquipmentStore>((set, get) => ({
 
     const result = upgradeEquipment(items);
     if (!result) return null;
+
+    try {
+      useAchievementStore.getState().recordEquipmentAcquired(result.quality);
+    } catch { /* non-critical */ }
 
     lsRemoveFromInventory(selectedUpgradeItems);
     lsAddToInventory([result]);

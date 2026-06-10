@@ -10,6 +10,7 @@ import { LoadoutConfigPage } from '@/pages/LoadoutConfigPage';
 import { PVPArenaPage } from '@/pages/PVPArenaPage';
 import { BattleReplayPage } from '@/pages/BattleReplayPage';
 import { LeaderboardPage } from '@/pages/LeaderboardPage';
+import { AchievementPage } from '@/pages/AchievementPage';
 import { useArenaStore } from '@/store/useArenaStore';
 
 function ArenaInitializer() {
@@ -37,6 +38,7 @@ export default function App() {
         <Route path="/arena/battle" element={<PVPArenaPage />} />
         <Route path="/arena/replay/:battleId" element={<BattleReplayPage />} />
         <Route path="/arena/leaderboard" element={<LeaderboardPage />} />
+        <Route path="/achievements" element={<AchievementPage />} />
       </Routes>
     </Router>
   );

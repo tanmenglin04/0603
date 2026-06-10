@@ -26,6 +26,7 @@ import {
   unlockBlessing as saveUnlockedBlessing,
   updateHighestFloor as saveHighestFloor,
 } from '../utils/localStorage';
+import { useAchievementStore } from './useAchievementStore';
 
 const towerEnemies = towerEnemiesData as Array<Omit<Enemy, 'type' | 'currentHp' | 'currentAttackIndex' | 'behaviorState' | 'behaviorLogs' | 'statusEffects' | 'isTargetable' | 'isSelected'>>;
 
@@ -371,6 +372,16 @@ export const useTowerStore = create<TowerStore>((set, get) => ({
   completeFloor: () => {
     const { currentFloor, currentFloorData, currentBlessings, gold, playerHp, playerMaxHp, playerShield, consecutiveDebuffTypes, activeDebuffs } = get();
     if (!currentFloorData) return;
+    
+    try {
+      const ach = useAchievementStore.getState();
+      ach.recordTowerFloorCleared();
+      if (!currentFloorData.isCamp && currentFloorData.enemy) {
+        const enemyData = currentFloorData.enemy;
+        ach.recordEnemyKilled(enemyData.id);
+        ach.recordEnemyKilled(enemyData.name);
+      }
+    } catch { /* non-critical */ }
     
     const newGold = gold + currentFloorData.goldReward;
     

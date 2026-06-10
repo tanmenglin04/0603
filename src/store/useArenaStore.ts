@@ -47,6 +47,7 @@ import {
   getRankByPoints,
 } from '../types';
 import { generateBattleCode, parseBattleCode, generateId } from '../utils/battleCode';
+import { useAchievementStore } from './useAchievementStore';
 
 const ARENA_STORAGE_KEY = 'rune-chess-arena-v1';
 const TASK_CHECK_INTERVAL = 60 * 1000;
@@ -533,6 +534,12 @@ export const useArenaStore = create<ArenaStore>((set, get) => ({
     };
 
     const updatedHistory = [record, ...get().battleHistory].slice(0, 100);
+
+    try {
+      if (result === 'attacker_win') {
+        useAchievementStore.getState().recordPVPWin();
+      }
+    } catch { /* non-critical */ }
 
     set({
       battleHistory: updatedHistory,

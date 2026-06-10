@@ -1077,3 +1077,503 @@ export interface NetworkMonitorState {
   lastSyncTime: number;
 }
 
+// ============== 成就系统类型定义 ==============
+
+export type AchievementTier = 'bronze' | 'silver' | 'gold';
+
+export type AchievementCategory = 'rune' | 'spell' | 'combat' | 'collection';
+
+export type RewardType = 'avatar_frame' | 'board_skin' | 'rune_effect';
+
+export interface AchievementTierConfig {
+  tier: AchievementTier;
+  threshold: number;
+  name: string;
+  icon: string;
+  color: string;
+}
+
+export interface AchievementDefinition {
+  id: string;
+  name: string;
+  description: string;
+  category: AchievementCategory;
+  statKey: string;
+  tiers: AchievementTierConfig[];
+  icon: string;
+}
+
+export interface AchievementProgress {
+  achievementId: string;
+  currentCount: number;
+  completedTiers: AchievementTier[];
+  claimedTiers: AchievementTier[];
+}
+
+export interface CosmeticReward {
+  id: string;
+  name: string;
+  type: RewardType;
+  description: string;
+  icon: string;
+  costTiers: Record<AchievementTier, number>;
+  preview?: string;
+}
+
+export interface AchievementStats {
+  runesEliminated: Record<ElementType, number>;
+  spellsCast: Record<string, number>;
+  comboSpellsCast: Record<string, number>;
+  enemiesKilled: Record<string, number>;
+  equipmentAcquired: Record<EquipmentQuality, number>;
+  totalBattlesWon: number;
+  totalTowerFloorsCleared: number;
+  totalPVPWins: number;
+}
+
+export interface AchievementSaveData {
+  stats: AchievementStats;
+  progress: Record<string, AchievementProgress>;
+  unlockedRewards: string[];
+  equippedAvatarFrame: string | null;
+  equippedBoardSkin: string | null;
+  equippedRuneEffect: string | null;
+  medalBalance: Record<AchievementTier, number>;
+}
+
+export const ACHIEVEMENT_TIER_META: Record<AchievementTier, { name: string; icon: string; color: string }> = {
+  bronze: { name: '铜', icon: '🥉', color: '#cd7f32' },
+  silver: { name: '银', icon: '🥈', color: '#c0c0c0' },
+  gold: { name: '金', icon: '🥇', color: '#ffd700' },
+};
+
+export const ACHIEVEMENT_CATEGORY_META: Record<AchievementCategory, { name: string; icon: string; color: string }> = {
+  rune: { name: '符文精通', icon: '🔮', color: '#a855f7' },
+  spell: { name: '法术精通', icon: '📖', color: '#3b82f6' },
+  combat: { name: '战斗荣耀', icon: '⚔️', color: '#ef4444' },
+  collection: { name: '收藏达人', icon: '💎', color: '#f59e0b' },
+};
+
+export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
+  {
+    id: 'fire_rune_master',
+    name: '火之掌控者',
+    description: '累计消除火系符文',
+    category: 'rune',
+    statKey: 'runesEliminated.fire',
+    icon: '🔥',
+    tiers: [
+      { tier: 'bronze', threshold: 500, name: '火之掌控者·铜', icon: '🥉', color: '#cd7f32' },
+      { tier: 'silver', threshold: 2000, name: '火之掌控者·银', icon: '🥈', color: '#c0c0c0' },
+      { tier: 'gold', threshold: 5000, name: '火之掌控者·金', icon: '🥇', color: '#ffd700' },
+    ],
+  },
+  {
+    id: 'water_rune_master',
+    name: '水之掌控者',
+    description: '累计消除水系符文',
+    category: 'rune',
+    statKey: 'runesEliminated.water',
+    icon: '💧',
+    tiers: [
+      { tier: 'bronze', threshold: 500, name: '水之掌控者·铜', icon: '🥉', color: '#cd7f32' },
+      { tier: 'silver', threshold: 2000, name: '水之掌控者·银', icon: '🥈', color: '#c0c0c0' },
+      { tier: 'gold', threshold: 5000, name: '水之掌控者·金', icon: '🥇', color: '#ffd700' },
+    ],
+  },
+  {
+    id: 'grass_rune_master',
+    name: '草之掌控者',
+    description: '累计消除草系符文',
+    category: 'rune',
+    statKey: 'runesEliminated.grass',
+    icon: '🌿',
+    tiers: [
+      { tier: 'bronze', threshold: 500, name: '草之掌控者·铜', icon: '🥉', color: '#cd7f32' },
+      { tier: 'silver', threshold: 2000, name: '草之掌控者·银', icon: '🥈', color: '#c0c0c0' },
+      { tier: 'gold', threshold: 5000, name: '草之掌控者·金', icon: '🥇', color: '#ffd700' },
+    ],
+  },
+  {
+    id: 'thunder_rune_master',
+    name: '雷之掌控者',
+    description: '累计消除雷系符文',
+    category: 'rune',
+    statKey: 'runesEliminated.thunder',
+    icon: '⚡',
+    tiers: [
+      { tier: 'bronze', threshold: 500, name: '雷之掌控者·铜', icon: '🥉', color: '#cd7f32' },
+      { tier: 'silver', threshold: 2000, name: '雷之掌控者·银', icon: '🥈', color: '#c0c0c0' },
+      { tier: 'gold', threshold: 5000, name: '雷之掌控者·金', icon: '🥇', color: '#ffd700' },
+    ],
+  },
+  {
+    id: 'fireball_master',
+    name: '火球术大师',
+    description: '累计释放火球术',
+    category: 'spell',
+    statKey: 'spellsCast.fireball',
+    icon: '🔥',
+    tiers: [
+      { tier: 'bronze', threshold: 100, name: '火球术大师·铜', icon: '🥉', color: '#cd7f32' },
+      { tier: 'silver', threshold: 500, name: '火球术大师·银', icon: '🥈', color: '#c0c0c0' },
+      { tier: 'gold', threshold: 1500, name: '火球术大师·金', icon: '🥇', color: '#ffd700' },
+    ],
+  },
+  {
+    id: 'heal_master',
+    name: '治愈之泉大师',
+    description: '累计释放治愈之泉',
+    category: 'spell',
+    statKey: 'spellsCast.water-heal',
+    icon: '💧',
+    tiers: [
+      { tier: 'bronze', threshold: 100, name: '治愈之泉大师·铜', icon: '🥉', color: '#cd7f32' },
+      { tier: 'silver', threshold: 500, name: '治愈之泉大师·银', icon: '🥈', color: '#c0c0c0' },
+      { tier: 'gold', threshold: 1500, name: '治愈之泉大师·金', icon: '🥇', color: '#ffd700' },
+    ],
+  },
+  {
+    id: 'vine_whip_master',
+    name: '藤蔓抽击大师',
+    description: '累计释放藤蔓抽击',
+    category: 'spell',
+    statKey: 'spellsCast.vine-whip',
+    icon: '🌿',
+    tiers: [
+      { tier: 'bronze', threshold: 100, name: '藤蔓抽击大师·铜', icon: '🥉', color: '#cd7f32' },
+      { tier: 'silver', threshold: 500, name: '藤蔓抽击大师·银', icon: '🥈', color: '#c0c0c0' },
+      { tier: 'gold', threshold: 1500, name: '藤蔓抽击大师·金', icon: '🥇', color: '#ffd700' },
+    ],
+  },
+  {
+    id: 'thunder_strike_master',
+    name: '雷霆一击大师',
+    description: '累计释放雷霆一击',
+    category: 'spell',
+    statKey: 'spellsCast.thunder-strike',
+    icon: '⚡',
+    tiers: [
+      { tier: 'bronze', threshold: 100, name: '雷霆一击大师·铜', icon: '🥉', color: '#cd7f32' },
+      { tier: 'silver', threshold: 500, name: '雷霆一击大师·银', icon: '🥈', color: '#c0c0c0' },
+      { tier: 'gold', threshold: 1500, name: '雷霆一击大师·金', icon: '🥇', color: '#ffd700' },
+    ],
+  },
+  {
+    id: 'combo_spell_master',
+    name: '融合法术师',
+    description: '累计释放融合法术',
+    category: 'spell',
+    statKey: 'comboSpellsCast._total',
+    icon: '✨',
+    tiers: [
+      { tier: 'bronze', threshold: 50, name: '融合法术师·铜', icon: '🥉', color: '#cd7f32' },
+      { tier: 'silver', threshold: 200, name: '融合法术师·银', icon: '🥈', color: '#c0c0c0' },
+      { tier: 'gold', threshold: 500, name: '融合法术师·金', icon: '🥇', color: '#ffd700' },
+    ],
+  },
+  {
+    id: 'slime_slayer',
+    name: '史莱姆猎人',
+    description: '累计击杀史莱姆类敌人',
+    category: 'combat',
+    statKey: 'enemiesKilled.slime',
+    icon: '🟢',
+    tiers: [
+      { tier: 'bronze', threshold: 10, name: '史莱姆猎人·铜', icon: '🥉', color: '#cd7f32' },
+      { tier: 'silver', threshold: 50, name: '史莱姆猎人·银', icon: '🥈', color: '#c0c0c0' },
+      { tier: 'gold', threshold: 100, name: '史莱姆猎人·金', icon: '🥇', color: '#ffd700' },
+    ],
+  },
+  {
+    id: 'dragon_slayer',
+    name: '屠龙勇士',
+    description: '累计击杀龙类敌人',
+    category: 'combat',
+    statKey: 'enemiesKilled.dragon',
+    icon: '🐉',
+    tiers: [
+      { tier: 'bronze', threshold: 10, name: '屠龙勇士·铜', icon: '🥉', color: '#cd7f32' },
+      { tier: 'silver', threshold: 50, name: '屠龙勇士·银', icon: '🥈', color: '#c0c0c0' },
+      { tier: 'gold', threshold: 100, name: '屠龙勇士·金', icon: '🥇', color: '#ffd700' },
+    ],
+  },
+  {
+    id: 'demon_hunter',
+    name: '恶魔猎人',
+    description: '累计击杀恶魔类敌人',
+    category: 'combat',
+    statKey: 'enemiesKilled.demon',
+    icon: '👹',
+    tiers: [
+      { tier: 'bronze', threshold: 10, name: '恶魔猎人·铜', icon: '🥉', color: '#cd7f32' },
+      { tier: 'silver', threshold: 50, name: '恶魔猎人·银', icon: '🥈', color: '#c0c0c0' },
+      { tier: 'gold', threshold: 100, name: '恶魔猎人·金', icon: '🥇', color: '#ffd700' },
+    ],
+  },
+  {
+    id: 'elemental_slayer',
+    name: '元素征服者',
+    description: '累计击杀元素类敌人',
+    category: 'combat',
+    statKey: 'enemiesKilled.elemental',
+    icon: '🌀',
+    tiers: [
+      { tier: 'bronze', threshold: 10, name: '元素征服者·铜', icon: '🥉', color: '#cd7f32' },
+      { tier: 'silver', threshold: 50, name: '元素征服者·银', icon: '🥈', color: '#c0c0c0' },
+      { tier: 'gold', threshold: 100, name: '元素征服者·金', icon: '🥇', color: '#ffd700' },
+    ],
+  },
+  {
+    id: 'undead_slayer',
+    name: '亡灵克星',
+    description: '累计击杀亡灵类敌人',
+    category: 'combat',
+    statKey: 'enemiesKilled.undead',
+    icon: '💀',
+    tiers: [
+      { tier: 'bronze', threshold: 10, name: '亡灵克星·铜', icon: '🥉', color: '#cd7f32' },
+      { tier: 'silver', threshold: 50, name: '亡灵克星·银', icon: '🥈', color: '#c0c0c0' },
+      { tier: 'gold', threshold: 100, name: '亡灵克星·金', icon: '🥇', color: '#ffd700' },
+    ],
+  },
+  {
+    id: 'beast_slayer',
+    name: '野兽驯服者',
+    description: '累计击杀野兽类敌人',
+    category: 'combat',
+    statKey: 'enemiesKilled.beast',
+    icon: '🐺',
+    tiers: [
+      { tier: 'bronze', threshold: 10, name: '野兽驯服者·铜', icon: '🥉', color: '#cd7f32' },
+      { tier: 'silver', threshold: 50, name: '野兽驯服者·银', icon: '🥈', color: '#c0c0c0' },
+      { tier: 'gold', threshold: 100, name: '野兽驯服者·金', icon: '🥇', color: '#ffd700' },
+    ],
+  },
+  {
+    id: 'battle_veteran',
+    name: '百战老兵',
+    description: '累计赢得战斗胜利',
+    category: 'combat',
+    statKey: 'totalBattlesWon',
+    icon: '🏆',
+    tiers: [
+      { tier: 'bronze', threshold: 10, name: '百战老兵·铜', icon: '🥉', color: '#cd7f32' },
+      { tier: 'silver', threshold: 50, name: '百战老兵·银', icon: '🥈', color: '#c0c0c0' },
+      { tier: 'gold', threshold: 200, name: '百战老兵·金', icon: '🥇', color: '#ffd700' },
+    ],
+  },
+  {
+    id: 'tower_explorer',
+    name: '秘境探索者',
+    description: '累计通关大秘境层数',
+    category: 'combat',
+    statKey: 'totalTowerFloorsCleared',
+    icon: '🏔️',
+    tiers: [
+      { tier: 'bronze', threshold: 20, name: '秘境探索者·铜', icon: '🥉', color: '#cd7f32' },
+      { tier: 'silver', threshold: 100, name: '秘境探索者·银', icon: '🥈', color: '#c0c0c0' },
+      { tier: 'gold', threshold: 300, name: '秘境探索者·金', icon: '🥇', color: '#ffd700' },
+    ],
+  },
+  {
+    id: 'pvp_champion',
+    name: '竞技场冠军',
+    description: '累计赢得PVP对战',
+    category: 'combat',
+    statKey: 'totalPVPWins',
+    icon: '⚔️',
+    tiers: [
+      { tier: 'bronze', threshold: 10, name: '竞技场冠军·铜', icon: '🥉', color: '#cd7f32' },
+      { tier: 'silver', threshold: 50, name: '竞技场冠军·银', icon: '🥈', color: '#c0c0c0' },
+      { tier: 'gold', threshold: 150, name: '竞技场冠军·金', icon: '🥇', color: '#ffd700' },
+    ],
+  },
+  {
+    id: 'common_collector',
+    name: '初入收藏',
+    description: '累计获得普通品质装备',
+    category: 'collection',
+    statKey: 'equipmentAcquired.common',
+    icon: '📦',
+    tiers: [
+      { tier: 'bronze', threshold: 20, name: '初入收藏·铜', icon: '🥉', color: '#cd7f32' },
+      { tier: 'silver', threshold: 100, name: '初入收藏·银', icon: '🥈', color: '#c0c0c0' },
+      { tier: 'gold', threshold: 300, name: '初入收藏·金', icon: '🥇', color: '#ffd700' },
+    ],
+  },
+  {
+    id: 'rare_collector',
+    name: '稀有猎手',
+    description: '累计获得稀有品质装备',
+    category: 'collection',
+    statKey: 'equipmentAcquired.rare',
+    icon: '💎',
+    tiers: [
+      { tier: 'bronze', threshold: 10, name: '稀有猎手·铜', icon: '🥉', color: '#cd7f32' },
+      { tier: 'silver', threshold: 50, name: '稀有猎手·银', icon: '🥈', color: '#c0c0c0' },
+      { tier: 'gold', threshold: 150, name: '稀有猎手·金', icon: '🥇', color: '#ffd700' },
+    ],
+  },
+  {
+    id: 'epic_collector',
+    name: '史诗鉴赏家',
+    description: '累计获得史诗品质装备',
+    category: 'collection',
+    statKey: 'equipmentAcquired.epic',
+    icon: '💜',
+    tiers: [
+      { tier: 'bronze', threshold: 5, name: '史诗鉴赏家·铜', icon: '🥉', color: '#cd7f32' },
+      { tier: 'silver', threshold: 25, name: '史诗鉴赏家·银', icon: '🥈', color: '#c0c0c0' },
+      { tier: 'gold', threshold: 80, name: '史诗鉴赏家·金', icon: '🥇', color: '#ffd700' },
+    ],
+  },
+  {
+    id: 'legendary_collector',
+    name: '传说追寻者',
+    description: '累计获得传说品质装备',
+    category: 'collection',
+    statKey: 'equipmentAcquired.legendary',
+    icon: '👑',
+    tiers: [
+      { tier: 'bronze', threshold: 2, name: '传说追寻者·铜', icon: '🥉', color: '#cd7f32' },
+      { tier: 'silver', threshold: 10, name: '传说追寻者·银', icon: '🥈', color: '#c0c0c0' },
+      { tier: 'gold', threshold: 30, name: '传说追寻者·金', icon: '🥇', color: '#ffd700' },
+    ],
+  },
+];
+
+export const ENEMY_TYPE_MAPPING: Record<string, string> = {
+  slime: 'slime',
+  'green_slime': 'slime',
+  'tower_slime': 'slime',
+  '秘境史莱姆': 'slime',
+  'fire_sprite': 'elemental',
+  '火焰精灵': 'elemental',
+  'frost_mage': 'elemental',
+  '冰霜法师': 'elemental',
+  'dark_knight': 'undead',
+  '暗影骑士': 'undead',
+  'ancient_dragon': 'dragon',
+  '远古巨龙': 'dragon',
+  'shadow_demon': 'demon',
+  '暗影恶魔': 'demon',
+  'forest_guardian': 'beast',
+  '森林守卫': 'beast',
+  'tower_bat': 'beast',
+  '暗影蝙蝠': 'beast',
+  'tower_golem': 'elemental',
+  '岩石魔像': 'elemental',
+  'tower_wraith': 'undead',
+  '幽影亡灵': 'undead',
+  'tower_spider': 'beast',
+  '毒蛛女皇': 'beast',
+  'tower_vampire': 'undead',
+  '血族伯爵': 'undead',
+  'tower_dragon': 'dragon',
+  '深渊之龙': 'dragon',
+  'tower_demon': 'demon',
+  '炼狱领主': 'demon',
+  'tower_lich': 'undead',
+  '巫妖王': 'undead',
+};
+
+export const COSMETIC_REWARDS: CosmeticReward[] = [
+  {
+    id: 'frame_achiever_bronze',
+    name: '成就者铜框',
+    type: 'avatar_frame',
+    description: '铜质成就头像框，象征初心的坚持',
+    icon: '🖼️',
+    costTiers: { bronze: 3, silver: 0, gold: 0 },
+  },
+  {
+    id: 'frame_achiever_silver',
+    name: '成就者银框',
+    type: 'avatar_frame',
+    description: '银质成就头像框，象征不懈的努力',
+    icon: '🖼️',
+    costTiers: { bronze: 0, silver: 3, gold: 0 },
+  },
+  {
+    id: 'frame_achiever_gold',
+    name: '成就者金框',
+    type: 'avatar_frame',
+    description: '金质成就头像框，象征巅峰的荣耀',
+    icon: '🖼️',
+    costTiers: { bronze: 0, silver: 0, gold: 3 },
+  },
+  {
+    id: 'frame_elemental_master',
+    name: '元素大师头像框',
+    type: 'avatar_frame',
+    description: '四元素环绕的华丽头像框',
+    icon: '🌈',
+    costTiers: { bronze: 5, silver: 3, gold: 1 },
+  },
+  {
+    id: 'skin_azure_board',
+    name: '蔚蓝棋盘',
+    type: 'board_skin',
+    description: '海洋主题的蓝色棋盘皮肤',
+    icon: '🌊',
+    costTiers: { bronze: 3, silver: 2, gold: 0 },
+  },
+  {
+    id: 'skin_inferno_board',
+    name: '烈焰棋盘',
+    type: 'board_skin',
+    description: '火焰主题的炽热棋盘皮肤',
+    icon: '🔥',
+    costTiers: { bronze: 2, silver: 3, gold: 0 },
+  },
+  {
+    id: 'skin_cosmic_board',
+    name: '星空棋盘',
+    type: 'board_skin',
+    description: '宇宙主题的璀璨棋盘皮肤',
+    icon: '🌌',
+    costTiers: { bronze: 0, silver: 5, gold: 2 },
+  },
+  {
+    id: 'effect_fire_trail',
+    name: '烈焰拖尾',
+    type: 'rune_effect',
+    description: '火系符文消除时绽放火焰粒子特效',
+    icon: '🔥✨',
+    costTiers: { bronze: 4, silver: 0, gold: 0 },
+  },
+  {
+    id: 'effect_ice_shatter',
+    name: '冰霜碎裂',
+    type: 'rune_effect',
+    description: '水系符文消除时展现冰晶碎裂特效',
+    icon: '💎❄️',
+    costTiers: { bronze: 4, silver: 0, gold: 0 },
+  },
+  {
+    id: 'effect_nature_bloom',
+    name: '自然绽放',
+    type: 'rune_effect',
+    description: '草系符文消除时展现花朵绽放特效',
+    icon: '🌸',
+    costTiers: { bronze: 0, silver: 4, gold: 0 },
+  },
+  {
+    id: 'effect_thunder_pulse',
+    name: '雷霆脉冲',
+    type: 'rune_effect',
+    description: '雷系符文消除时展现电弧脉冲特效',
+    icon: '⚡💫',
+    costTiers: { bronze: 0, silver: 0, gold: 2 },
+  },
+  {
+    id: 'effect_rainbow_aura',
+    name: '彩虹光环',
+    type: 'rune_effect',
+    description: '所有符文消除时展现彩虹光环特效',
+    icon: '🌈✨',
+    costTiers: { bronze: 5, silver: 5, gold: 3 },
+  },
+];
+
