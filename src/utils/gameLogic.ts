@@ -606,8 +606,8 @@ export const calculateComboDamageWithResistanceEffect = (
 };
 
 export const createTerrainGrid = (
-  specialConfig?: SpecialTileConfig,
   terrainConfig?: Partial<TerrainConfig>,
+  runeGrid?: Rune[][],
   gridSize: number = GRID_SIZE
 ): TerrainCell[][] => {
   const terrainGrid: TerrainCell[][] = [];
@@ -620,29 +620,28 @@ export const createTerrainGrid = (
 
   if (!terrainConfig) return terrainGrid;
 
+  const blockedSet = new Set<string>();
+  if (runeGrid) {
+    for (let row = 0; row < gridSize; row++) {
+      for (let col = 0; col < gridSize; col++) {
+        const tileType = runeGrid[row]?.[col]?.tileType;
+        if (tileType === 'obstacle' || tileType === 'frozen') {
+          blockedSet.add(`${row},${col}`);
+        }
+      }
+    }
+  }
+
   const allPositions: { row: number; col: number }[] = [];
   for (let row = 0; row < gridSize; row++) {
     for (let col = 0; col < gridSize; col++) {
-      if (terrainGrid[row][col].type === null) {
+      const key = `${row},${col}`;
+      if (terrainGrid[row][col].type === null && !blockedSet.has(key)) {
         allPositions.push({ row, col });
       }
     }
   }
   const shuffled = shuffleArray(allPositions);
-
-  const obstacleSet = new Set<string>();
-  if (specialConfig) {
-    const obstaclePositions: { row: number; col: number }[] = [];
-    for (let row = 0; row < gridSize; row++) {
-      for (let col = 0; col < gridSize; col++) {
-        obstaclePositions.push({ row, col });
-      }
-    }
-    const shuffledObs = shuffleArray(obstaclePositions);
-    for (let i = 0; i < specialConfig.obstacle && i < shuffledObs.length; i++) {
-      obstacleSet.add(`${shuffledObs[i].row},${shuffledObs[i].col}`);
-    }
-  }
 
   let idx = 0;
   const tryPlaceTerrain = (count: number, type: TerrainType) => {
@@ -651,7 +650,7 @@ export const createTerrainGrid = (
       const pos = shuffled[idx];
       idx++;
       const key = `${pos.row},${pos.col}`;
-      if (obstacleSet.has(key)) continue;
+      if (blockedSet.has(key)) continue;
       if (terrainGrid[pos.row][pos.col].type !== null) continue;
       terrainGrid[pos.row][pos.col] = { type, age: 0 };
       placed++;
@@ -693,6 +692,7 @@ export const spreadMagma = (
       if (nr < 0 || nr >= gridSize || nc < 0 || nc >= gridSize) continue;
       if (newTerrain[nr][nc].type !== null) continue;
       if (runeGrid[nr][nc].tileType === 'obstacle') continue;
+      if (runeGrid[nr][nc].tileType === 'frozen') continue;
       if (Math.random() < spreadChance) {
         newTerrain[nr][nc] = { type: 'magma', age: 0, hasSpreadThisTurn: true };
       }

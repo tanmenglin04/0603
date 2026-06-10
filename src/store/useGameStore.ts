@@ -164,6 +164,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
     }
 
+    const newRuneGrid = createRuneGrid(level.specialTiles, GRID_SIZE);
+    const newTerrainGrid = createTerrainGrid(level.terrain, newRuneGrid, GRID_SIZE);
+
     set({
       currentLevelId: levelId,
       playerHp,
@@ -171,8 +174,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       energy,
       maxEnergy: level.maxEnergy,
       gridSize: GRID_SIZE,
-      runeGrid: createRuneGrid(level.specialTiles, GRID_SIZE),
-      terrainGrid: createTerrainGrid(level.specialTiles, level.terrain, GRID_SIZE),
+      runeGrid: newRuneGrid,
+      terrainGrid: newTerrainGrid,
       selectedRunes: [],
       enemy,
       enemyUnits,
