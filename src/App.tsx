@@ -40,6 +40,7 @@ export default function App() {
         <Route path="/arena" element={<ArenaHomePage />} />
         <Route path="/arena/loadout" element={<LoadoutConfigPage />} />
         <Route path="/arena/battle" element={<PVPArenaPage />} />
+        <Route path="/replay" element={<BattleReplayPage />} />
         <Route path="/arena/replay/:battleId" element={<BattleReplayPage />} />
         <Route path="/arena/leaderboard" element={<LeaderboardPage />} />
         <Route path="/achievements" element={<AchievementPage />} />

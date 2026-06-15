@@ -75,7 +75,7 @@ const generateMockGridForV2 = (state: ReplayPlaybackState | null): Rune[][] => {
         (c) => c.row === row && c.col === col
       );
       const el: ElementType =
-        isHighlighted && state.currentEvent?.type === 'MATCH_RUNES'
+        isHighlighted && state.currentEvent?.type === 'match_runes'
           ? (state.highlightedCells[0]?.element as ElementType) || 'fire'
           : elements[(row * 3 + col * 7) % elements.length];
       grid[row][col] = {
@@ -440,7 +440,7 @@ export const BattleReplayPage: React.FC = () => {
     if (isUsingV2 && playbackState?.currentEvent) {
       const ev = playbackState.currentEvent;
       switch (ev.type) {
-        case 'MATCH_RUNES':
+        case 'match_runes':
           return {
             icon: <Zap size={20} />,
             title: '符文消除',
@@ -448,7 +448,7 @@ export const BattleReplayPage: React.FC = () => {
             badge: '消除',
             badgeColor: 'bg-green-500/20 text-green-400 border-green-500/40',
           };
-        case 'CHAIN_COMBO':
+        case 'chain_combo':
           return {
             icon: <Flame size={20} />,
             title: `${ev.payload.totalChainCount}连消`,
@@ -456,7 +456,7 @@ export const BattleReplayPage: React.FC = () => {
             badge: '连消',
             badgeColor: 'bg-orange-500/20 text-orange-400 border-orange-500/40',
           };
-        case 'CAST_SPELL':
+        case 'cast_spell':
           return {
             icon: <Zap size={20} />,
             title: `施放: ${ev.payload.spellName}`,
@@ -464,7 +464,7 @@ export const BattleReplayPage: React.FC = () => {
             badge: '法术',
             badgeColor: 'bg-purple-500/20 text-purple-400 border-purple-500/40',
           };
-        case 'CAST_COMBO_SPELL':
+        case 'cast_combo_spell':
           return {
             icon: <Star size={20} />,
             title: `连携技: ${ev.payload.spellName}`,
@@ -472,15 +472,15 @@ export const BattleReplayPage: React.FC = () => {
             badge: '连携',
             badgeColor: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40',
           };
-        case 'ENEMY_BEHAVIOR':
+        case 'enemy_behavior':
           return {
             icon: <Swords size={20} />,
-            title: `敌人: ${ev.payload.description}`,
+            title: `敌人: ${ev.payload.behaviorDescription || ev.payload.description}`,
             details: `对玩家伤害 ${ev.payload.damageToPlayer || 0}${ev.payload.isBerserk ? '（狂暴状态）' : ''}`,
             badge: '敌人',
             badgeColor: 'bg-red-500/20 text-red-400 border-red-500/40',
           };
-        case 'TURN_START':
+        case 'turn_start':
           return {
             icon: <Circle size={16} />,
             title: `第 ${ev.payload.turn} 回合开始`,
@@ -488,7 +488,7 @@ export const BattleReplayPage: React.FC = () => {
             badge: '回合',
             badgeColor: 'bg-blue-500/20 text-blue-400 border-blue-500/40',
           };
-        case 'TURN_END':
+        case 'turn_end':
           return {
             icon: <Circle size={16} />,
             title: `第 ${ev.payload.turn} 回合结束`,
@@ -496,7 +496,7 @@ export const BattleReplayPage: React.FC = () => {
             badge: '回合',
             badgeColor: 'bg-gray-500/20 text-gray-400 border-gray-500/40',
           };
-        case 'TERRAIN_EFFECT':
+        case 'terrain_effect':
           return {
             icon: <Flame size={20} />,
             title: '地形效果',
@@ -531,9 +531,9 @@ export const BattleReplayPage: React.FC = () => {
 
   const eventDesc = getEventDescription();
   const currentActionElement =
-    isUsingV2 && playbackState?.currentEvent?.type === 'MATCH_RUNES'
+    isUsingV2 && playbackState?.currentEvent?.type === 'match_runes'
       ? (playbackState.currentEvent.payload.element as ElementType)
-      : isUsingV2 && (playbackState?.currentEvent?.type === 'CAST_SPELL' || playbackState?.currentEvent?.type === 'CAST_COMBO_SPELL')
+      : isUsingV2 && (playbackState?.currentEvent?.type === 'cast_spell' || playbackState?.currentEvent?.type === 'cast_combo_spell')
       ? 'fire'
       : currentAction?.actionType === 'match_runes'
       ? (currentAction.payload?.element as ElementType)

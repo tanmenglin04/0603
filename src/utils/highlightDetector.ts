@@ -439,21 +439,29 @@ export const generateShareCard = (
     accent = ELEMENT_COLORS[primaryElement];
   }
 
+  const turnNumber =
+    replay.events[highlight.startEventIndex]?.turn ??
+    replay.events[Math.max(0, highlight.startEventIndex)]?.turn ??
+    1;
+
   return {
     highlightId: highlight.id,
     highlightType: highlight.type,
     title: highlight.title,
     subtitle: highlight.description,
+    highlightName: highlight.title,
     battleId: replay.battleId,
     levelId: replay.levelId,
     levelName: replay.levelName,
     enemyName: replay.enemyName,
     result: replay.result,
     totalTurns: replay.totalTurns,
+    turnNumber,
     stats,
     runeEffects: Array.from(uniqueElements),
     backgroundColor: bg,
     accentColor: accent,
+    primaryColor: bg,
     generatedAt: Date.now(),
   };
 };

@@ -1779,12 +1779,14 @@ export interface ShareCardData {
   highlightType: HighlightType;
   title: string;
   subtitle: string;
+  highlightName: string;
   battleId: string;
   levelId: number;
   levelName: string;
   enemyName: string;
   result: 'victory' | 'defeat';
   totalTurns: number;
+  turnNumber: number;
   stats: {
     maxCombo?: number;
     totalDamage?: number;
@@ -1795,6 +1797,7 @@ export interface ShareCardData {
   runeEffects: ElementType[];
   backgroundColor: string;
   accentColor: string;
+  primaryColor: string;
   generatedAt: number;
 }
 
