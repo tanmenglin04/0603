@@ -71,15 +71,15 @@ const generateMockGridForV2 = (state: ReplayPlaybackState | null): Rune[][] => {
   for (let row = 0; row < GRID_SIZE; row++) {
     grid[row] = [];
     for (let col = 0; col < GRID_SIZE; col++) {
-      const isHighlighted = state?.currentMatchPath?.some(
+      const isHighlighted = state?.highlightedCells?.some(
         (c) => c.row === row && c.col === col
       );
       const el: ElementType =
         isHighlighted && state.currentEvent?.type === 'MATCH_RUNES'
-          ? (state.currentMatchPath[0]?.element as ElementType) || 'fire'
+          ? (state.highlightedCells[0]?.element as ElementType) || 'fire'
           : elements[(row * 3 + col * 7) % elements.length];
       grid[row][col] = {
-        id: `r_${row}_${col}_${state?.eventIndex || 0}`,
+        id: `r_${row}_${col}_${state?.currentEventIndex || 0}`,
         element: el,
         row,
         col,
@@ -188,13 +188,13 @@ export const BattleReplayPage: React.FC = () => {
 
   // ============== V2 ENGINE HANDLERS ==============
   const v2IsPlaying = playbackState?.isPlaying || false;
-  const v2Speed = playbackState?.speed || 1;
-  const v2Progress = playbackState?.progress || 0;
-  const v2EventCount = playbackState?.totalEvents || 0;
-  const v2EventIndex = playbackState?.eventIndex || 0;
-  const v2Turn = playbackState?.turn || 0;
-  const v2TotalTurns = playbackState?.totalTurns || 0;
-  const v2Highlights = playbackState?.highlights || [];
+  const v2Speed = playbackState?.playbackSpeed || 1;
+  const v2Progress = v2EngineRef.current?.getProgress() || 0;
+  const v2EventCount = v2Replay?.events.length || 0;
+  const v2EventIndex = playbackState?.currentEventIndex || 0;
+  const v2Turn = playbackState?.currentTurn || 0;
+  const v2TotalTurns = v2Replay?.hpTimeline?.turnMarkers?.length || 0;
+  const v2Highlights = v2Replay?.highlights || [];
 
   const handleTogglePlay = useCallback(() => {
     if (useV2Engine.current && v2EngineRef.current) {
@@ -876,7 +876,7 @@ export const BattleReplayPage: React.FC = () => {
                 {grid.map((row) =>
                   row.map((rune) => {
                     const isHighlighted = isUsingV2
-                      ? !!playbackState?.currentMatchPath?.some(
+                      ? !!playbackState?.highlightedCells?.some(
                           (c) => c.row === rune.row && c.col === rune.col
                         )
                       : false;

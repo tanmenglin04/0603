@@ -1124,9 +1124,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
         behavior.type,
         log.message,
         damageToPlayer,
-        behavior.reason,
-        behavior.finalScore,
-        updatedEnemy.behaviorState.isBerserk
+        updatedEnemy.behaviorState.isBerserk,
+        updatedEnemy.behaviorState.defenseState.isDefending,
+        updatedEnemy.behaviorState.chargeState.skillName,
+        updatedEnemy.behaviorState.chargeState.chargedDamage,
+        newMinion?.name
       );
       battleRecorder.setPlayerHp(currentPlayerHp, 'enemy_attack');
       battleRecorder.setEnemyHp(updatedEnemy.currentHp, updatedEnemy, 'enemy_turn');
