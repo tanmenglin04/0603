@@ -6,7 +6,7 @@ import { LevelCard } from '../components/LevelCard';
 import levelsData from '../data/levels.json';
 import type { Level } from '../types';
 import { requestNotificationPermission } from '../utils/notifications';
-import { Sparkles, BookOpen, Gem, Coins, Mountain, Trophy } from 'lucide-react';
+import { Sparkles, BookOpen, Gem, Coins, Mountain, Trophy, Wrench } from 'lucide-react';
 
 const levels: Level[] = levelsData as Level[];
 
@@ -82,6 +82,13 @@ export const MenuPage: React.FC = () => {
                 <Coins size={18} className="text-game-gold" />
                 <span className="text-game-gold font-bold">{gold}</span>
               </div>
+              <button
+                onClick={() => navigate('/workshop')}
+                className="game-button-secondary flex items-center gap-2 px-4 py-2 bg-cyan-500/20 border-cyan-500/50 hover:bg-cyan-500/30"
+              >
+                <Wrench size={18} />
+                <span>创意工坊</span>
+              </button>
               <button
                 onClick={() => navigate('/tower')}
                 className="game-button-secondary flex items-center gap-2 px-4 py-2 bg-purple-500/20 border-purple-500/50 hover:bg-purple-500/30"

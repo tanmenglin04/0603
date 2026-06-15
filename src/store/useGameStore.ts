@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { GameStore, Rune, Spell, Level, EnergyPool, ComboSpell, Minion, CombatUnit, Enemy, ElementType, ComboElementType, TerrainCell } from '../types';
+import type { GameStore, Rune, Spell, Level, EnergyPool, ComboSpell, Minion, CombatUnit, Enemy, ElementType, ComboElementType } from '../types';
 import { DEFAULT_BEHAVIOR_STATE, GRID_SIZE } from '../types';
 import levelsData from '../data/levels.json';
 import {
@@ -201,6 +201,50 @@ export const useGameStore = create<GameStore>((set, get) => ({
       screenShake: false,
       spellEffect: null,
       comboSpellCooldowns,
+    });
+  },
+
+  initWorkshopLevel: (config) => {
+    const enemy: Enemy = {
+      ...config.enemy,
+      type: 'enemy',
+      currentHp: config.enemy.maxHp,
+      currentAttackIndex: 0,
+      statusEffects: [],
+      behaviorState: JSON.parse(JSON.stringify(DEFAULT_BEHAVIOR_STATE)),
+      behaviorLogs: [],
+      isTargetable: true,
+      isSelected: false,
+    };
+
+    const energy = { ...initialEnergy };
+    const newRuneGrid = createRuneGrid(config.specialTiles, config.gridSize);
+    const newTerrainGrid = createTerrainGrid(config.terrain || {}, newRuneGrid, config.gridSize);
+
+    set({
+      currentLevelId: -1,
+      playerHp: config.playerMaxHp,
+      playerMaxHp: config.playerMaxHp,
+      energy,
+      maxEnergy: config.maxEnergy,
+      gridSize: config.gridSize,
+      runeGrid: newRuneGrid,
+      terrainGrid: newTerrainGrid,
+      selectedRunes: [],
+      enemy,
+      enemyUnits: [enemy],
+      selectedTargetId: enemy.id,
+      turn: 1,
+      isPlayerTurn: true,
+      battleStatus: 'playing',
+      unlockedLevels: getUnlockedLevels(),
+      highestLevel: getHighestLevel(),
+      comboCount: 0,
+      floatingTexts: [],
+      isAnimating: false,
+      screenShake: false,
+      spellEffect: null,
+      comboSpellCooldowns: {},
     });
   },
 

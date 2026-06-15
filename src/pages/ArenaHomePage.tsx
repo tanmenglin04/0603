@@ -15,7 +15,7 @@ import {
   User,
   Crown,
   Zap,
-  Input,
+  TextCursorInput,
   X,
   Play,
 } from 'lucide-react';
@@ -414,7 +414,7 @@ export const ArenaHomePage: React.FC = () => {
               <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="relative z-10">
                 <div className="w-14 h-14 rounded-xl bg-orange-500/20 flex items-center justify-center mb-4 group-hover:bg-orange-500/30 transition-colors">
-                  <Input size={28} className="text-orange-400" />
+                  <TextCursorInput size={28} className="text-orange-400" />
                 </div>
                 <h4 className="text-lg font-bold text-white mb-1">匹配对战</h4>
                 <p className="text-sm text-gray-400">输入对战码挑战其他玩家</p>

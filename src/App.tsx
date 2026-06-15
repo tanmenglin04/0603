@@ -11,6 +11,10 @@ import { PVPArenaPage } from '@/pages/PVPArenaPage';
 import { BattleReplayPage } from '@/pages/BattleReplayPage';
 import { LeaderboardPage } from '@/pages/LeaderboardPage';
 import { AchievementPage } from '@/pages/AchievementPage';
+import { WorkshopPage } from '@/pages/WorkshopPage';
+import { WorkshopLevelDetailPage } from '@/pages/WorkshopLevelDetailPage';
+import { LevelEditorPage } from '@/pages/LevelEditorPage';
+import { TrialPlayPage } from '@/pages/TrialPlayPage';
 import { useArenaStore } from '@/store/useArenaStore';
 
 function ArenaInitializer() {
@@ -39,6 +43,10 @@ export default function App() {
         <Route path="/arena/replay/:battleId" element={<BattleReplayPage />} />
         <Route path="/arena/leaderboard" element={<LeaderboardPage />} />
         <Route path="/achievements" element={<AchievementPage />} />
+        <Route path="/workshop" element={<WorkshopPage />} />
+        <Route path="/workshop/level/:levelId" element={<WorkshopLevelDetailPage />} />
+        <Route path="/workshop/editor" element={<LevelEditorPage />} />
+        <Route path="/workshop/trial" element={<TrialPlayPage />} />
       </Routes>
     </Router>
   );

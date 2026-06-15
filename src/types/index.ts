@@ -227,8 +227,20 @@ export interface GameState {
   comboSpellCooldowns: Record<string, number>;
 }
 
+export interface WorkshopLevelConfig {
+  levelId: string;
+  name: string;
+  enemy: Omit<Enemy, 'currentHp' | 'currentAttackIndex' | 'behaviorState' | 'behaviorLogs' | 'statusEffects' | 'type' | 'isTargetable' | 'isSelected'>;
+  playerMaxHp: number;
+  maxEnergy: number;
+  gridSize: number;
+  specialTiles: SpecialTileConfig;
+  terrain?: Partial<TerrainConfig>;
+}
+
 export interface GameActions {
   initLevel: (levelId: number) => void;
+  initWorkshopLevel: (config: WorkshopLevelConfig) => void;
   selectRune: (rune: Rune) => void;
   addSelectedRune: (rune: Rune) => void;
   clearSelectedRunes: () => void;
