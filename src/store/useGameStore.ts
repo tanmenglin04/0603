@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { GameStore, Rune, Spell, Level, EnergyPool, ComboSpell, Minion, CombatUnit, Enemy, ElementType, ComboElementType } from '../types';
-import { DEFAULT_BEHAVIOR_STATE, GRID_SIZE } from '../types';
+import type { GameStore, Rune, Spell, Level, EnergyPool, ComboSpell, Minion, CombatUnit, Enemy, ElementType, ComboElementType, BattleReplayV2, ShareCardData } from '../types';
+import { DEFAULT_BEHAVIOR_STATE, GRID_SIZE, HIGHLIGHT_TYPE_META } from '../types';
 import levelsData from '../data/levels.json';
 import {
   createRuneGrid,
@@ -48,6 +48,9 @@ import { showVictoryNotification, showDefeatNotification } from '../utils/notifi
 import { getEquippedItems } from '../utils/localStorage';
 import { getEquipmentBonuses } from '../utils/runeEquipment';
 import { useAchievementStore } from './useAchievementStore';
+import { BattleRecorder } from '../utils/battleRecorder';
+import { saveReplay, loadReplay } from '../utils/replayStorage';
+import { detectHighlights, generateAllShareCards } from '../utils/highlightDetector';
 
 const levels: Level[] = levelsData as Level[];
 
@@ -137,6 +140,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
   screenShake: false,
   spellEffect: null,
   comboSpellCooldowns: {},
+  battleRecorder: null,
+  lastReplayData: null,
+  lastReplayShareCards: [],
+
+  saveCurrentReplay: (): boolean => {
+    const replay = get().lastReplayData;
+    if (!replay) return false;
+    return saveReplay(replay);
+  },
+
+  getLastReplay: (): BattleReplayV2 | null => {
+    return get().lastReplayData;
+  },
 
   initLevel: (levelId: number) => {
     const level = levels.find(l => l.id === levelId);
@@ -177,6 +193,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const newRuneGrid = createRuneGrid(level.specialTiles, GRID_SIZE);
     const newTerrainGrid = createTerrainGrid(level.terrain, newRuneGrid, GRID_SIZE);
 
+    const battleRecorder = new BattleRecorder(level, enemy);
+    battleRecorder.start();
+    battleRecorder.setTurn(turn);
+    battleRecorder.setPlayerHp(playerHp, 'init');
+    battleRecorder.setEnergy(energy, 'init');
+    if (!savedBattle || savedBattle.levelId !== levelId) {
+      battleRecorder.recordTurnStart(turn);
+    }
+
     set({
       currentLevelId: levelId,
       playerHp,
@@ -201,6 +226,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       screenShake: false,
       spellEffect: null,
       comboSpellCooldowns,
+      battleRecorder,
+      lastReplayData: null,
+      lastReplayShareCards: [],
     });
   },
 
@@ -220,6 +248,25 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const energy = { ...initialEnergy };
     const newRuneGrid = createRuneGrid(config.specialTiles, config.gridSize);
     const newTerrainGrid = createTerrainGrid(config.terrain || {}, newRuneGrid, config.gridSize);
+
+    const fakeLevel: Level = {
+      id: -1,
+      name: config.name,
+      description: '',
+      enemy: config.enemy,
+      playerMaxHp: config.playerMaxHp,
+      maxEnergy: config.maxEnergy,
+      stars: [],
+      background: '',
+      specialTiles: config.specialTiles,
+      terrain: config.terrain,
+    };
+    const battleRecorder = new BattleRecorder(fakeLevel, enemy);
+    battleRecorder.start();
+    battleRecorder.setTurn(1);
+    battleRecorder.setPlayerHp(config.playerMaxHp, 'init');
+    battleRecorder.setEnergy(energy, 'init');
+    battleRecorder.recordTurnStart(1);
 
     set({
       currentLevelId: -1,
@@ -245,6 +292,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       screenShake: false,
       spellEffect: null,
       comboSpellCooldowns: {},
+      battleRecorder,
+      lastReplayData: null,
+      lastReplayShareCards: [],
     });
   },
 
@@ -364,7 +414,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   confirmMatch: () => {
-    const { selectedRunes, comboCount, isPlayerTurn, battleStatus, isAnimating, terrainGrid, playerHp, playerMaxHp } = get();
+    const { selectedRunes, comboCount, isPlayerTurn, battleStatus, isAnimating, terrainGrid, playerHp, playerMaxHp, battleRecorder } = get();
     if (!isPlayerTurn || battleStatus !== 'playing' || isAnimating) return;
 
     if (selectedRunes.length < 3) {
@@ -390,6 +440,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
       get().addFloatingText(`荆棘反伤 -${thornsDamage}`, 200, 380, 'thorns');
       get().setScreenShake(true);
       setTimeout(() => get().setScreenShake(false), 200);
+      if (battleRecorder) {
+        battleRecorder.setPlayerHp(currentPlayerHp, 'thorns');
+        battleRecorder.recordTerrainEffect('thorns', `荆棘反伤 -${thornsDamage}`, selectedRunes.length, thornsDamage);
+      }
+    }
+
+    if (battleRecorder) {
+      battleRecorder.recordMatchRunes(selectedRunes, {}, 0);
+      battleRecorder.setPlayerHp(currentPlayerHp, 'match');
     }
 
     let grid = markMatchedRunes(get().runeGrid, selectedRunes);
@@ -397,7 +456,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ runeGrid: grid, selectedRunes: [], playerHp: currentPlayerHp });
 
     if (currentPlayerHp <= 0) {
-      const { currentLevelId, runeGrid } = get();
+      const { currentLevelId, runeGrid, enemy, battleRecorder: recorder } = get();
       const updatedGrid = decrementDoubleEnergyTurns(runeGrid);
       get().decrementCooldowns();
       set({
@@ -409,6 +468,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
         isAnimating: false,
       });
       clearBattleProgress();
+      if (recorder && enemy) {
+        try {
+          recorder.setPlayerHp(0, 'defeat');
+          recorder.recordTurnEnd(get().turn - 1);
+          const replay = recorder.stop('defeat');
+          replay.highlights = detectHighlights(replay);
+          const cards = generateAllShareCards(replay, replay.highlights);
+          set({ lastReplayData: replay, lastReplayShareCards: cards });
+        } catch {}
+      }
       showDefeatNotification(levels.find(l => l.id === currentLevelId)?.name || '');
       return;
     }
@@ -433,6 +502,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (doubleEnergyInSelection > 0) {
       get().addFloatingText('双倍能量!', 300, 160, 'thunder');
     }
+    if (battleRecorder) {
+      battleRecorder.setEnergy(newEnergy, 'match');
+    }
 
     const deCells = saveDoubleEnergyCells(grid, currentGridSize);
 
@@ -442,12 +514,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
       
       let currentCombo = comboCount;
       let totalCombo = 1;
+      const allChainPaths: any[][] = [];
 
       const processChain = () => {
         const chainMatches = findAllMatches(grid, currentGridSize);
         if (chainMatches.length > 0) {
           currentCombo++;
           totalCombo++;
+
+          const chainPathCoords = chainMatches.map(r => ({ row: r.row, col: r.col, element: r.element }));
+          allChainPaths.push(chainPathCoords);
 
           const chainThornsDamage = calculateThornsDamage(chainMatches, terrainGrid, 5);
           if (chainThornsDamage > 0) {
@@ -457,9 +533,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
             get().setScreenShake(true);
             setTimeout(() => get().setScreenShake(false), 200);
             set({ playerHp: newHp });
+            if (battleRecorder) {
+              battleRecorder.setPlayerHp(newHp, 'thorns');
+              battleRecorder.recordTerrainEffect('thorns', `荆棘反伤 -${chainThornsDamage}`, chainMatches.length, chainThornsDamage);
+            }
 
             if (newHp <= 0) {
-              const { currentLevelId, runeGrid } = get();
+              const { currentLevelId, runeGrid, enemy, battleRecorder: recorder } = get();
               const updatedGrid = decrementDoubleEnergyTurns(runeGrid);
               get().decrementCooldowns();
               set({
@@ -470,9 +550,28 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 isAnimating: false,
               });
               clearBattleProgress();
+              if (recorder && enemy) {
+                try {
+                  recorder.setPlayerHp(0, 'defeat');
+                  recorder.recordTurnEnd(get().turn - 1);
+                  const replay = recorder.stop('defeat');
+                  replay.highlights = detectHighlights(replay);
+                  const cards = generateAllShareCards(replay, replay.highlights);
+                  set({ lastReplayData: replay, lastReplayShareCards: cards });
+                } catch {}
+              }
               showDefeatNotification(levels.find(l => l.id === currentLevelId)?.name || '');
               return;
             }
+          }
+
+          const matchedElements: Record<string, number> = {};
+          chainMatches.forEach(r => {
+            matchedElements[r.element] = (matchedElements[r.element] || 0) + 1;
+          });
+
+          if (battleRecorder) {
+            battleRecorder.recordChainCombo(currentCombo, totalCombo, matchedElements, {}, allChainPaths);
           }
 
           const chainDeBefore = saveDoubleEnergyCells(grid, currentGridSize);
@@ -502,6 +601,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
               }
             });
 
+            if (battleRecorder) {
+              battleRecorder.setEnergy({ ...newEnergy }, 'chain');
+            }
+
             set({ runeGrid: grid });
             processChain();
           }, 300);
@@ -523,7 +626,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   castSpell: (spell: Spell) => {
-    const { isPlayerTurn, battleStatus, isAnimating, energy, enemyUnits, selectedTargetId } = get();
+    const { isPlayerTurn, battleStatus, isAnimating, energy, enemyUnits, selectedTargetId, battleRecorder, enemy, turn } = get();
     if (!isPlayerTurn || battleStatus !== 'playing' || isAnimating) return;
 
     if (energy[spell.element] < spell.cost) return;
@@ -570,6 +673,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
     
     const mainEnemy = updatedUnits.find(u => u.type === 'enemy') as Enemy | undefined;
+
+    if (battleRecorder) {
+      if (mainEnemy) battleRecorder.setEnemyHp(mainEnemy.currentHp, mainEnemy, 'spell');
+      battleRecorder.setEnergy(newEnergy, 'spell');
+      const isCritical = isEffective || (killedUnit && finalDamage >= (target.maxHp || 100) * 0.5);
+      battleRecorder.recordCastSpell(spell, target, finalDamage, spell.heal || 0, isEffective, isWeak, !!killedUnit, isCritical);
+    }
     
     set({
       enemyUnits: updatedUnits,
@@ -578,6 +688,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
     
     const newPlayerHp = Math.min(get().playerMaxHp, get().playerHp + spell.heal);
+    if (battleRecorder && spell.heal > 0) {
+      battleRecorder.setPlayerHp(newPlayerHp, 'heal');
+    }
 
     setTimeout(() => {
       get().setScreenShake(true);
@@ -597,7 +710,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         get().addFloatingText(`${killedUnit.name} 被击败!`, 400, 200, 'yellow');
       }
 
-      const { enemyUnits: latestUnits } = get();
+      const { enemyUnits: latestUnits, battleRecorder: recorder } = get();
       const currentMainEnemy = latestUnits.find(u => u.type === 'enemy') as Enemy | undefined;
 
       set({
@@ -617,6 +730,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
           });
         }
         clearBattleProgress();
+        trackVictory(enemy?.id, enemy?.name);
+        if (recorder && enemy) {
+          try {
+            recorder.setEnemyHp(0, enemy, 'victory');
+            recorder.recordTurnEnd(turn);
+            const replay = recorder.stop('victory');
+            replay.highlights = detectHighlights(replay);
+            const cards = generateAllShareCards(replay, replay.highlights);
+            set({ lastReplayData: replay, lastReplayShareCards: cards });
+          } catch {}
+        }
         get().notifyVictory(levels.find(l => l.id === get().currentLevelId)?.name || '');
       } else {
         get().saveProgress();
@@ -625,7 +749,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   castComboSpell: (spell: ComboSpell) => {
-    const { isPlayerTurn, battleStatus, isAnimating, energy, enemyUnits, selectedTargetId, comboSpellCooldowns } = get();
+    const { isPlayerTurn, battleStatus, isAnimating, energy, enemyUnits, selectedTargetId, comboSpellCooldowns, battleRecorder, enemy, turn } = get();
     if (!isPlayerTurn || battleStatus !== 'playing' || isAnimating) return;
 
     if (!canCastComboSpell(energy, spell)) return;
@@ -684,6 +808,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       mainEnemy = applyStatusEffectToEnemy(mainEnemy, statusEffect);
       finalUnits = finalUnits.map(u => u.type === 'enemy' ? mainEnemy : u);
     }
+
+    if (battleRecorder) {
+      if (mainEnemy) battleRecorder.setEnemyHp(mainEnemy.currentHp, mainEnemy, 'combo_spell');
+      battleRecorder.setEnergy(newEnergy, 'combo_spell');
+      battleRecorder.recordCastComboSpell(spell, target, finalDamage, !!killedUnit);
+      battleRecorder.recordStatusEffect('enemy', spell.effect, spell.effect, spell.effectDuration, spell.effectValue || 0);
+    }
     
     set({
       enemyUnits: finalUnits,
@@ -711,8 +842,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         get().addFloatingText(`${killedUnit.name} 被击败!`, 400, 200, 'yellow');
       }
 
-      const { enemyUnits: finalUnits } = get();
-      const mainEnemy = finalUnits.find(u => u.type === 'enemy') as Enemy | undefined;
+      const { enemyUnits: finalUnitsFinal, battleRecorder: recorder } = get();
+      const finalMainEnemy = finalUnitsFinal.find(u => u.type === 'enemy') as Enemy | undefined;
 
       set({
         energy: newEnergy,
@@ -721,7 +852,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         comboSpellCooldowns: newCooldowns,
       });
 
-      if (!mainEnemy || mainEnemy.currentHp <= 0) {
+      if (!finalMainEnemy || finalMainEnemy.currentHp <= 0) {
         set({ battleStatus: 'victory' });
         if (get().currentLevelId) {
           unlockLevel(get().currentLevelId! + 1);
@@ -731,6 +862,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
           });
         }
         clearBattleProgress();
+        trackVictory(enemy?.id, enemy?.name);
+        if (recorder && enemy) {
+          try {
+            recorder.setEnemyHp(0, enemy, 'victory');
+            recorder.recordTurnEnd(turn);
+            const replay = recorder.stop('victory');
+            replay.highlights = detectHighlights(replay);
+            const cards = generateAllShareCards(replay, replay.highlights);
+            set({ lastReplayData: replay, lastReplayShareCards: cards });
+          } catch {}
+        }
         get().notifyVictory(levels.find(l => l.id === get().currentLevelId)?.name || '');
       } else {
         get().saveProgress();
@@ -739,9 +881,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   endTurn: () => {
-    const { battleStatus, enemy } = get();
+    const { battleStatus, enemy, battleRecorder, turn } = get();
     if (battleStatus !== 'playing' || !enemy) return;
 
+    if (battleRecorder) {
+      battleRecorder.recordTurnEnd(turn);
+    }
     set({ isPlayerTurn: false });
 
     setTimeout(() => {
@@ -750,7 +895,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   applyStatusEffects: () => {
-    const { enemy, battleStatus } = get();
+    const { enemy, battleStatus, battleRecorder } = get();
     if (!enemy || battleStatus !== 'playing') return;
 
     const { updatedEnemy, damageDealt } = processStatusEffects(enemy);
@@ -767,19 +912,38 @@ export const useGameStore = create<GameStore>((set, get) => ({
       u.type === 'enemy' ? finalEnemy : u
     );
 
+    if (battleRecorder) {
+      battleRecorder.setEnemyHp(newEnemyHp, finalEnemy, 'burn');
+      if (damageDealt > 0) {
+        battleRecorder.recordStatusEffect('enemy', 'burn', '灼烧', 0, 0, damageDealt);
+      }
+    }
+
     set({ enemy: finalEnemy, enemyUnits: updatedUnits });
 
     if (newEnemyHp <= 0) {
+      const { currentLevelId, turn: currentTurn, battleRecorder: recorder, enemy: curEnemy } = get();
       set({ battleStatus: 'victory' });
-      if (get().currentLevelId) {
-        unlockLevel(get().currentLevelId! + 1);
+      if (currentLevelId) {
+        unlockLevel(currentLevelId + 1);
         set({
           unlockedLevels: getUnlockedLevels(),
           highestLevel: getHighestLevel(),
         });
       }
       clearBattleProgress();
-      get().notifyVictory(levels.find(l => l.id === get().currentLevelId)?.name || '');
+      trackVictory(curEnemy?.id, curEnemy?.name);
+      if (recorder && curEnemy) {
+        try {
+          recorder.setEnemyHp(0, curEnemy, 'victory');
+          recorder.recordTurnEnd(currentTurn);
+          const replay = recorder.stop('victory');
+          replay.highlights = detectHighlights(replay);
+          const cards = generateAllShareCards(replay, replay.highlights);
+          set({ lastReplayData: replay, lastReplayShareCards: cards });
+        } catch {}
+      }
+      get().notifyVictory(levels.find(l => l.id === currentLevelId)?.name || '');
       return;
     }
 
@@ -789,7 +953,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   enemyAttack: () => {
-    const { enemy, enemyUnits, playerHp, playerMaxHp, turn, currentLevelId, runeGrid } = get();
+    const { enemy, enemyUnits, playerHp, playerMaxHp, turn, currentLevelId, runeGrid, battleRecorder } = get();
     if (!enemy) return;
 
     let updatedEnemy = { ...enemy };
@@ -801,6 +965,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     if (selfDamage > 0) {
       get().addFloatingText(`狂暴反噬 -${selfDamage}`, 400, 200, 'red');
+      if (battleRecorder) {
+        battleRecorder.setEnemyHp(updatedEnemy.currentHp, updatedEnemy, 'berserk');
+      }
     }
 
     if (updatedEnemy.currentHp <= 0) {
@@ -830,6 +997,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
         });
       }
       clearBattleProgress();
+      trackVictory(updatedEnemy.id, updatedEnemy.name);
+      if (battleRecorder) {
+        try {
+          battleRecorder.setEnemyHp(0, updatedEnemy, 'victory');
+          battleRecorder.recordTurnEnd(turn);
+          const replay = battleRecorder.stop('victory');
+          replay.highlights = detectHighlights(replay);
+          const cards = generateAllShareCards(replay, replay.highlights);
+          set({ lastReplayData: replay, lastReplayShareCards: cards });
+        } catch {}
+      }
       get().notifyVictory(levels.find(l => l.id === currentLevelId)?.name || '');
       return;
     }
@@ -838,7 +1016,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       u.type === 'enemy' ? updatedEnemy : u
     );
     const minions = currentUnits.filter(u => u.type === 'minion') as Minion[];
-    const { updatedMinions, totalDamage: minionDamage, explosions } = processMinionsTurn(minions);
+    const { updatedMinions, totalDamage: minionDamage, explosions, killedMinions } = processMinionsTurn(minions) as any;
     
     currentUnits = [
       ...currentUnits.filter(u => u.type === 'enemy'),
@@ -851,14 +1029,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
       summonedMinions: updatedMinions,
     };
 
+    if (battleRecorder) {
+      killedMinions?.forEach((m: Minion) => {
+        battleRecorder.recordMinionKilled(m);
+      });
+    }
+
     if (minionDamage > 0) {
       currentPlayerHp = Math.max(0, currentPlayerHp - minionDamage);
       get().setScreenShake(true);
       setTimeout(() => get().setScreenShake(false), 300);
       get().addFloatingText(`小怪伤害 -${minionDamage}`, 200, 380, 'purple');
+      if (battleRecorder) {
+        battleRecorder.setPlayerHp(currentPlayerHp, 'minion');
+      }
     }
 
-    explosions.forEach(explosion => {
+    explosions.forEach((explosion: string) => {
       get().addFloatingText(explosion, 200, 420, 'orange');
     });
 
@@ -878,6 +1065,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
         battleStatus: 'defeat',
       });
       clearBattleProgress();
+      if (battleRecorder) {
+        try {
+          battleRecorder.setPlayerHp(0, 'defeat');
+          battleRecorder.recordTurnEnd(turn);
+          const replay = battleRecorder.stop('defeat');
+          replay.highlights = detectHighlights(replay);
+          const cards = generateAllShareCards(replay, replay.highlights);
+          set({ lastReplayData: replay, lastReplayShareCards: cards });
+        } catch {}
+      }
       showDefeatNotification(levels.find(l => l.id === currentLevelId)?.name || '');
       return;
     }
@@ -898,6 +1095,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (newMinion) {
       currentUnits = [...currentUnits, newMinion];
       get().addFloatingText(`召唤了 ${newMinion.name}!`, 400, 300, 'purple');
+      if (battleRecorder) {
+        battleRecorder.recordMinionSummoned(newMinion);
+      }
     }
 
     if (damageToPlayer > 0) {
@@ -918,6 +1118,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
       get().addFloatingText(damageText, 200, 400, 'fire');
     }
 
+    if (battleRecorder) {
+      battleRecorder.recordEnemyBehavior(
+        turn,
+        behavior.type,
+        log.message,
+        damageToPlayer,
+        behavior.reason,
+        behavior.finalScore,
+        updatedEnemy.behaviorState.isBerserk
+      );
+      battleRecorder.setPlayerHp(currentPlayerHp, 'enemy_attack');
+      battleRecorder.setEnemyHp(updatedEnemy.currentHp, updatedEnemy, 'enemy_turn');
+    }
+
     get().addFloatingText(log.message, 400, 250, 'yellow');
 
     const newAttackIndex = (updatedEnemy.currentAttackIndex + 1) % updatedEnemy.attackPattern.length;
@@ -930,11 +1144,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const updatedGrid = decrementDoubleEnergyTurns(runeGrid);
     get().decrementCooldowns();
 
+    const nextTurn = turn + 1;
+    if (battleRecorder) {
+      battleRecorder.setTurn(nextTurn);
+      battleRecorder.recordTurnStart(nextTurn);
+    }
+
     set({
       playerHp: currentPlayerHp,
       enemy: updatedEnemy,
       enemyUnits: currentUnits,
-      turn: turn + 1,
+      turn: nextTurn,
       isPlayerTurn: true,
       runeGrid: updatedGrid,
     });
@@ -942,6 +1162,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (currentPlayerHp <= 0) {
       set({ battleStatus: 'defeat' });
       clearBattleProgress();
+      if (battleRecorder) {
+        try {
+          battleRecorder.setPlayerHp(0, 'defeat');
+          const replay = battleRecorder.stop('defeat');
+          replay.highlights = detectHighlights(replay);
+          const cards = generateAllShareCards(replay, replay.highlights);
+          set({ lastReplayData: replay, lastReplayShareCards: cards });
+        } catch {}
+      }
       showDefeatNotification(levels.find(l => l.id === currentLevelId)?.name || '');
     } else {
       setTimeout(() => {
@@ -1031,7 +1260,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   processTerrainEffects: () => {
-    const { runeGrid, terrainGrid, currentLevelId, gridSize, battleStatus } = get();
+    const { runeGrid, terrainGrid, currentLevelId, gridSize, battleStatus, battleRecorder, playerHp, enemy } = get();
     if (battleStatus !== 'playing') return;
 
     const level = levels.find(l => l.id === currentLevelId);
@@ -1039,22 +1268,46 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     let newTerrain = terrainGrid;
     let newGrid = runeGrid;
+    let totalMagmaBurnDamage = 0;
+    let frostFrozenCount = 0;
+    let stormChangedCount = 0;
 
-    const { newGrid: burnedGrid, burnedCount } = applyBurnedRunes(newGrid, gridSize);
+    const { newGrid: burnedGrid, burnedCount, burnDamage } = applyBurnedRunes(newGrid, gridSize) as any;
     newGrid = burnedGrid;
+    totalMagmaBurnDamage = burnDamage || 0;
     if (burnedCount > 0) {
       get().addFloatingText(`岩浆灼烧 ${burnedCount}个符文!`, 300, 280, 'magma');
+      if (battleRecorder) {
+        battleRecorder.recordTerrainEffect('magma', `岩浆灼烧 ${burnedCount}个符文`, burnedCount, 0);
+      }
     }
+
+    const { newGrid: frostGrid, frozenCount } = applyFrostTerrainEffect(newGrid, newTerrain, gridSize) as any;
+    newGrid = frostGrid;
+    frostFrozenCount = frozenCount || 0;
 
     newGrid = decrementTerrainFrozen(newGrid, gridSize);
     newTerrain = spreadMagma(newTerrain, newGrid, spreadChance, gridSize);
     newGrid = markMagmaBurn(newGrid, newTerrain, gridSize);
-    newGrid = applyFrostTerrainEffect(newGrid, newTerrain, gridSize);
+    
+    if (frostFrozenCount > 0 && battleRecorder) {
+      battleRecorder.recordTerrainEffect('frost', `冰霜冻结 ${frostFrozenCount}个符文`, frostFrozenCount, 0);
+    }
 
-    const { newGrid: stormGrid, changedCount } = applyStormTerrainEffect(newGrid, newTerrain, gridSize);
+    const { newGrid: stormGrid, changedCount, stormDamage } = applyStormTerrainEffect(newGrid, newTerrain, gridSize) as any;
     newGrid = stormGrid;
+    stormChangedCount = changedCount || 0;
     if (changedCount > 0) {
       get().addFloatingText(`雷暴扭曲 ${changedCount}个符文!`, 300, 300, 'storm');
+      if (battleRecorder) {
+        battleRecorder.recordTerrainEffect('storm', `雷暴扭曲 ${changedCount}个符文`, changedCount, 0);
+      }
+    }
+
+    const totalDamage = totalMagmaBurnDamage + (stormDamage || 0);
+    if (totalDamage > 0 && battleRecorder) {
+      const newHp = Math.max(0, playerHp - totalDamage);
+      battleRecorder.setPlayerHp(newHp, 'terrain');
     }
 
     set({

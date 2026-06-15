@@ -225,6 +225,9 @@ export interface GameState {
   screenShake: boolean;
   spellEffect: ElementType | ComboElementType | null;
   comboSpellCooldowns: Record<string, number>;
+  battleRecorder: any | null;
+  lastReplayData: BattleReplayV2 | null;
+  lastReplayShareCards: ShareCardData[];
 }
 
 export interface WorkshopLevelConfig {
@@ -266,6 +269,8 @@ export interface GameActions {
   removeMinion: (minionId: string) => void;
   updateMinion: (minionId: string, updates: Partial<Minion>) => void;
   processTerrainEffects: () => void;
+  saveCurrentReplay: () => boolean;
+  getLastReplay: () => BattleReplayV2 | null;
 }
 
 export type GameStore = GameState & GameActions;
@@ -1588,4 +1593,365 @@ export const COSMETIC_REWARDS: CosmeticReward[] = [
     costTiers: { bronze: 5, silver: 5, gold: 3 },
   },
 ];
+
+// ============== 战斗回放与记录系统类型定义 ==============
+
+export enum BattleEventType {
+  MATCH_RUNES = 'match_runes',
+  CHAIN_COMBO = 'chain_combo',
+  CAST_SPELL = 'cast_spell',
+  CAST_COMBO_SPELL = 'cast_combo_spell',
+  ENEMY_BEHAVIOR = 'enemy_behavior',
+  PLAYER_HP_CHANGE = 'player_hp_change',
+  ENEMY_HP_CHANGE = 'enemy_hp_change',
+  ENERGY_CHANGE = 'energy_change',
+  TURN_START = 'turn_start',
+  TURN_END = 'turn_end',
+  STATUS_EFFECT = 'status_effect',
+  BATTLE_START = 'battle_start',
+  BATTLE_END = 'battle_end',
+  MINION_SUMMONED = 'minion_summoned',
+  MINION_KILLED = 'minion_killed',
+  TERRAIN_EFFECT = 'terrain_effect',
+}
+
+export type HighlightType = 
+  | 'mega_combo'
+  | 'crit_kill_boss'
+  | 'low_hp_comeback'
+  | 'perfect_chain'
+  | 'spell_burst'
+  | 'boss_slayer';
+
+export interface RuneCoord {
+  row: number;
+  col: number;
+}
+
+export interface MatchRunesPayload {
+  element: ElementType;
+  path: RuneCoord[];
+  matchCount: number;
+  energyGained: Partial<EnergyPool>;
+  damageDealt?: number;
+  isDoubleEnergy: boolean;
+}
+
+export interface ChainComboPayload {
+  comboLevel: number;
+  totalChainCount: number;
+  matchedElements: Record<ElementType, number>;
+  totalEnergyGained: Partial<EnergyPool>;
+  matchPaths: RuneCoord[][];
+}
+
+export interface CastSpellPayload {
+  spellId: string;
+  spellName: string;
+  element: ElementType;
+  targetUnitId: string | null;
+  targetUnitName: string | null;
+  damageDealt: number;
+  healAmount: number;
+  isEffective: boolean;
+  isWeak: boolean;
+  isCritical?: boolean;
+  targetKilled: boolean;
+}
+
+export interface CastComboSpellPayload {
+  spellId: string;
+  spellName: string;
+  elements: ComboElementType;
+  targetUnitId: string | null;
+  targetUnitName: string | null;
+  damageDealt: number;
+  effectApplied: StatusEffectType;
+  effectValue: number;
+  effectDuration: number;
+  targetKilled: boolean;
+}
+
+export interface EnemyBehaviorPayload {
+  turn: number;
+  behaviorType: EnemyBehaviorType;
+  behaviorDescription: string;
+  damageToPlayer: number;
+  isBerserk: boolean;
+  isDefending: boolean;
+  chargeSkillName?: string;
+  chargeDamage?: number;
+  summonedMinionName?: string;
+}
+
+export interface HpChangePayload {
+  unitType: 'player' | 'enemy' | 'minion';
+  unitId: string | null;
+  unitName: string | null;
+  oldHp: number;
+  newHp: number;
+  maxHp: number;
+  delta: number;
+  reason: string;
+}
+
+export interface EnergyChangePayload {
+  oldEnergy: EnergyPool;
+  newEnergy: EnergyPool;
+  delta: Partial<EnergyPool>;
+  reason: string;
+}
+
+export interface StatusEffectPayload {
+  targetType: 'player' | 'enemy';
+  effectType: StatusEffectType;
+  effectName: string;
+  duration: number;
+  value: number;
+  damagePerTurn?: number;
+}
+
+export interface MinionEventPayload {
+  minionId: string;
+  minionName: string;
+  minionSprite: string;
+  maxHp: number;
+  attack?: number;
+  explosionDamage?: number;
+}
+
+export interface TerrainEffectPayload {
+  terrainType: TerrainType;
+  effectDescription: string;
+  affectedRuneCount?: number;
+  damageToPlayer?: number;
+}
+
+export interface BattleEndPayload {
+  result: 'victory' | 'defeat';
+  totalTurns: number;
+  totalDamageDealt: number;
+  totalDamageTaken: number;
+  totalRunesMatched: number;
+  totalSpellsCast: number;
+  maxComboReached: number;
+}
+
+export type BattleEventPayload =
+  | MatchRunesPayload
+  | ChainComboPayload
+  | CastSpellPayload
+  | CastComboSpellPayload
+  | EnemyBehaviorPayload
+  | HpChangePayload
+  | EnergyChangePayload
+  | StatusEffectPayload
+  | MinionEventPayload
+  | TerrainEffectPayload
+  | BattleEndPayload
+  | Record<string, unknown>;
+
+export interface BattleEvent {
+  id: string;
+  type: BattleEventType;
+  timestamp: number;
+  turn: number;
+  isPlayerSide: boolean;
+  payload: BattleEventPayload;
+  eventIndex: number;
+}
+
+export interface HighlightMoment {
+  id: string;
+  type: HighlightType;
+  title: string;
+  description: string;
+  startEventIndex: number;
+  endEventIndex: number;
+  startTimestamp: number;
+  endTimestamp: number;
+  data: Record<string, unknown>;
+  icon: string;
+}
+
+export interface ShareCardData {
+  highlightId: string;
+  highlightType: HighlightType;
+  title: string;
+  subtitle: string;
+  battleId: string;
+  levelId: number;
+  levelName: string;
+  enemyName: string;
+  result: 'victory' | 'defeat';
+  totalTurns: number;
+  stats: {
+    maxCombo?: number;
+    totalDamage?: number;
+    critDamage?: number;
+    remainingHp?: number;
+    remainingHpPercent?: number;
+  };
+  runeEffects: ElementType[];
+  backgroundColor: string;
+  accentColor: string;
+  generatedAt: number;
+}
+
+export interface ReplayStateSnapshot {
+  snapshotIndex: number;
+  eventIndex: number;
+  turn: number;
+  playerHp: number;
+  playerMaxHp: number;
+  enemyHp: number;
+  enemyMaxHp: number;
+  energy: EnergyPool;
+  gridSize: number;
+}
+
+export interface BattleReplayV2 {
+  replayVersion: 'v2';
+  battleId: string;
+  levelId: number;
+  levelName: string;
+  enemyName: string;
+  enemySprite: string;
+  startedAt: number;
+  endedAt: number;
+  durationMs: number;
+  result: 'victory' | 'defeat';
+  totalTurns: number;
+  initialState: {
+    playerHp: number;
+    playerMaxHp: number;
+    enemyHp: number;
+    enemyMaxHp: number;
+    energy: EnergyPool;
+    gridSize: number;
+  };
+  events: BattleEvent[];
+  snapshots: ReplayStateSnapshot[];
+  highlights: HighlightMoment[];
+  hpTimeline: {
+    player: number[];
+    enemy: number[];
+    turnMarkers: number[];
+  };
+  stats: {
+    totalDamageDealt: number;
+    totalDamageTaken: number;
+    totalRunesMatched: number;
+    totalSpellsCast: number;
+    totalComboSpellsCast: number;
+    maxComboReached: number;
+    totalChainCombos: number;
+    criticalHits: number;
+  };
+}
+
+export interface CompressedEventHeader {
+  t: number;
+  i: number;
+  e: number;
+  p: boolean;
+}
+
+export interface CompressedReplayData {
+  version: 'v2';
+  meta: {
+    id: string;
+    lid: number;
+    ln: string;
+    en: string;
+    es: string;
+    sa: number;
+    ea: number;
+    dr: number;
+    rs: 'victory' | 'defeat';
+    tt: number;
+  };
+  init: {
+    php: number;
+    pmh: number;
+    ehp: number;
+    emh: number;
+    en: EnergyPool;
+    gs: number;
+  };
+  evts: string;
+  snaps: string;
+  hls: string;
+  htl: {
+    p: number[];
+    e: number[];
+    m: number[];
+  };
+  sts: {
+    tdd: number;
+    tdt: number;
+    trm: number;
+    tsc: number;
+    tcsc: number;
+    mcr: number;
+    tcc: number;
+    ch: number;
+  };
+}
+
+export interface ReplayListEntry {
+  battleId: string;
+  levelId: number;
+  levelName: string;
+  enemyName: string;
+  result: 'victory' | 'defeat';
+  totalTurns: number;
+  durationMs: number;
+  recordedAt: number;
+  fileSize: number;
+  hasHighlights: boolean;
+  highlightCount: number;
+}
+
+export interface ReplayStorageStats {
+  totalReplays: number;
+  totalSizeBytes: number;
+  totalSizeMB: string;
+  oldestReplayDate: number | null;
+  newestReplayDate: number | null;
+}
+
+export interface ReplayPlaybackState {
+  currentEventIndex: number;
+  currentTurn: number;
+  isPlaying: boolean;
+  playbackSpeed: 1 | 2 | 4;
+  isPaused: boolean;
+  playerHp: number;
+  enemyHp: number;
+  energy: EnergyPool;
+  highlightedCells: RuneCoord[];
+  currentHighlight: HighlightMoment | null;
+  visibleEvents: BattleEvent[];
+}
+
+export type ReplayNavigationTarget = 
+  | { type: 'event'; eventIndex: number }
+  | { type: 'turn'; turn: number }
+  | { type: 'highlight'; highlightId: string }
+  | { type: 'start' }
+  | { type: 'end' }
+  | { type: 'next_turn' }
+  | { type: 'prev_turn' }
+  | { type: 'next_highlight' }
+  | { type: 'prev_highlight' };
+
+export const HIGHLIGHT_TYPE_META: Record<HighlightType, { name: string; icon: string; color: string }> = {
+  mega_combo: { name: '超级连消', icon: '🔥🔥🔥', color: '#f97316' },
+  crit_kill_boss: { name: '暴击秒杀', icon: '💥⚔️', color: '#ef4444' },
+  low_hp_comeback: { name: '丝血反杀', icon: '❤️‍🔥', color: '#ec4899' },
+  perfect_chain: { name: '完美连锁', icon: '✨🔗', color: '#8b5cf6' },
+  spell_burst: { name: '法术爆发', icon: '✨💫', color: '#3b82f6' },
+  boss_slayer: { name: 'BOSS终结者', icon: '🏆👑', color: '#f59e0b' },
+};
 
