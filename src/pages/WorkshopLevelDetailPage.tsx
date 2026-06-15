@@ -64,6 +64,7 @@ export const WorkshopLevelDetailPage: React.FC = () => {
     likeLevel,
     dislikeLevel,
     userRatings,
+    userLikeDislike,
     load,
   } = useWorkshopStore();
 
@@ -74,6 +75,7 @@ export const WorkshopLevelDetailPage: React.FC = () => {
   const level = levelId ? getLevelById(levelId) : undefined;
   const comments = levelId ? getComments(levelId) : [];
   const userRating = levelId ? userRatings[levelId] || 0 : 0;
+  const userLikeState = levelId ? userLikeDislike[levelId] || null : null;
 
   const [commentText, setCommentText] = useState('');
   const [commentRating, setCommentRating] = useState(0);
@@ -221,16 +223,24 @@ export const WorkshopLevelDetailPage: React.FC = () => {
               </button>
               <button
                 onClick={() => likeLevel(level.id)}
-                className="game-button-secondary flex items-center gap-2 px-4 py-3 text-blue-400 border-blue-400/30 hover:bg-blue-500/20"
+                className={`game-button-secondary flex items-center gap-2 px-4 py-3 transition-all ${
+                  userLikeState === 'like'
+                    ? 'text-white bg-blue-500/40 border-blue-400'
+                    : 'text-blue-400 border-blue-400/30 hover:bg-blue-500/20'
+                }`}
               >
-                <ThumbsUp size={16} />
-                <span>点赞</span>
+                <ThumbsUp size={16} className={userLikeState === 'like' ? 'fill-current' : ''} />
+                <span>{userLikeState === 'like' ? '已点赞' : '点赞'}</span>
               </button>
               <button
                 onClick={() => dislikeLevel(level.id)}
-                className="game-button-secondary flex items-center gap-2 px-4 py-3 text-gray-400 border-gray-400/30 hover:bg-gray-500/20"
+                className={`game-button-secondary flex items-center gap-2 px-4 py-3 transition-all ${
+                  userLikeState === 'dislike'
+                    ? 'text-white bg-gray-500/40 border-gray-400'
+                    : 'text-gray-400 border-gray-400/30 hover:bg-gray-500/20'
+                }`}
               >
-                <ThumbsDown size={16} />
+                <ThumbsDown size={16} className={userLikeState === 'dislike' ? 'fill-current' : ''} />
               </button>
             </div>
           </div>

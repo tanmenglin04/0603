@@ -221,6 +221,7 @@ interface WorkshopStoreState {
   category: WorkshopCategory;
   searchQuery: string;
   userRatings: Record<string, number>;
+  userLikeDislike: Record<string, 'like' | 'dislike' | null>;
   isLoading: boolean;
 }
 
@@ -265,6 +266,7 @@ export const useWorkshopStore = create<WorkshopStoreState & WorkshopStoreActions
   category: 'all',
   searchQuery: '',
   userRatings: {},
+  userLikeDislike: {},
   isLoading: false,
 
   load: () => {
@@ -279,6 +281,7 @@ export const useWorkshopStore = create<WorkshopStoreState & WorkshopStoreActions
           levels: [...OFFICIAL_LEVELS, ...userLevels],
           comments: data.comments || {},
           userRatings: data.userRatings || {},
+          userLikeDislike: data.userLikeDislike || {},
         });
       }
       const draftRaw = localStorage.getItem(EDITOR_KEY);
@@ -298,9 +301,12 @@ export const useWorkshopStore = create<WorkshopStoreState & WorkshopStoreActions
 
   save: () => {
     try {
-      const { levels, comments, userRatings } = get();
+      const { levels, comments, userRatings, userLikeDislike } = get();
       const userLevels = levels.filter((l) => !l.isOfficial);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ levels: userLevels, comments, userRatings }));
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ levels: userLevels, comments, userRatings, userLikeDislike })
+      );
     } catch {}
   },
 
@@ -436,16 +442,70 @@ export const useWorkshopStore = create<WorkshopStoreState & WorkshopStoreActions
   },
 
   likeLevel: (levelId) => {
-    set((s) => ({
-      levels: s.levels.map((l) => (l.id === levelId ? { ...l, likes: l.likes + 1 } : l)),
-    }));
+    set((s) => {
+      const currentState = s.userLikeDislike[levelId];
+      let likesDelta = 0;
+      let dislikesDelta = 0;
+      let newState: 'like' | 'dislike' | null = 'like';
+
+      if (currentState === 'like') {
+        likesDelta = -1;
+        newState = null;
+      } else if (currentState === 'dislike') {
+        dislikesDelta = -1;
+        likesDelta = 1;
+        newState = 'like';
+      } else {
+        likesDelta = 1;
+        newState = 'like';
+      }
+
+      return {
+        levels: s.levels.map((l) =>
+          l.id === levelId
+            ? { ...l, likes: Math.max(0, l.likes + likesDelta), dislikes: Math.max(0, l.dislikes + dislikesDelta) }
+            : l
+        ),
+        userLikeDislike: {
+          ...s.userLikeDislike,
+          [levelId]: newState,
+        },
+      };
+    });
     get().save();
   },
 
   dislikeLevel: (levelId) => {
-    set((s) => ({
-      levels: s.levels.map((l) => (l.id === levelId ? { ...l, dislikes: l.dislikes + 1 } : l)),
-    }));
+    set((s) => {
+      const currentState = s.userLikeDislike[levelId];
+      let likesDelta = 0;
+      let dislikesDelta = 0;
+      let newState: 'like' | 'dislike' | null = 'dislike';
+
+      if (currentState === 'dislike') {
+        dislikesDelta = -1;
+        newState = null;
+      } else if (currentState === 'like') {
+        likesDelta = -1;
+        dislikesDelta = 1;
+        newState = 'dislike';
+      } else {
+        dislikesDelta = 1;
+        newState = 'dislike';
+      }
+
+      return {
+        levels: s.levels.map((l) =>
+          l.id === levelId
+            ? { ...l, likes: Math.max(0, l.likes + likesDelta), dislikes: Math.max(0, l.dislikes + dislikesDelta) }
+            : l
+        ),
+        userLikeDislike: {
+          ...s.userLikeDislike,
+          [levelId]: newState,
+        },
+      };
+    });
     get().save();
   },
 
@@ -546,9 +606,6 @@ export const useWorkshopStore = create<WorkshopStoreState & WorkshopStoreActions
     if (!enemy) return null;
     if (!editorState.levelName.trim()) return null;
 
-    const specialCells = editorState.cells.filter((c) => c.tileType !== 'normal');
-    const terrainCells = editorState.cells.filter((c) => c.terrainType !== null);
-
     const specialTiles = {
       obstacle: editorState.cells.filter((c) => c.tileType === 'obstacle').length,
       frozen: editorState.cells.filter((c) => c.tileType === 'frozen').length,
@@ -562,6 +619,10 @@ export const useWorkshopStore = create<WorkshopStoreState & WorkshopStoreActions
       thorns: editorState.cells.filter((c) => c.terrainType === 'thorns').length,
       storm: editorState.cells.filter((c) => c.terrainType === 'storm').length,
     };
+
+    const tilePlacements = editorState.cells.filter(
+      (c) => c.tileType !== 'normal' || c.terrainType !== null
+    );
 
     const level: WorkshopLevel = {
       id: 'lvl_' + Math.random().toString(36).substring(2, 11) + Date.now().toString(36),
@@ -587,7 +648,7 @@ export const useWorkshopStore = create<WorkshopStoreState & WorkshopStoreActions
       stars: editorState.stars,
       specialTiles,
       terrain,
-      tilePlacements: [...specialCells, ...terrainCells],
+      tilePlacements,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       plays: 0,
