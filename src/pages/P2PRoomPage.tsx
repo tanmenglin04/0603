@@ -41,7 +41,6 @@ import {
 } from '../types';
 import { P2PConnectionManager, generateRoomCode } from '../utils/p2pConnectionManager';
 import { P2PBattleController } from '../utils/p2pBattleController';
-import { LocalP2PTransport } from '../utils/p2pTransport';
 
 const AI_STYLE_ICONS: Record<DefenderAIStyle, React.ReactNode> = {
   aggressive: <Flame size={18} />,
@@ -119,12 +118,11 @@ export const P2PRoomPage: React.FC = () => {
       setRoomCode(newRoomCode);
       setIsHost(true);
 
-      const transport = new LocalP2PTransport();
-      connectionManagerRef.current = new P2PConnectionManager(
-        transport,
-        currentProfile,
-        getActiveLoadout()!
-      );
+      connectionManagerRef.current = new P2PConnectionManager({
+        transportType: 'local',
+        playerProfile: currentProfile,
+        playerLoadout: getActiveLoadout()!,
+      });
 
       const unsub = connectionManagerRef.current.onSessionUpdate((newSession) => {
         setSession({ ...newSession });
@@ -161,12 +159,11 @@ export const P2PRoomPage: React.FC = () => {
       setRoomCode(trimmed);
       setIsHost(false);
 
-      const transport = new LocalP2PTransport();
-      connectionManagerRef.current = new P2PConnectionManager(
-        transport,
-        currentProfile,
-        getActiveLoadout()!
-      );
+      connectionManagerRef.current = new P2PConnectionManager({
+        transportType: 'local',
+        playerProfile: currentProfile,
+        playerLoadout: getActiveLoadout()!,
+      });
 
       const unsub = connectionManagerRef.current.onSessionUpdate((newSession) => {
         setSession({ ...newSession });

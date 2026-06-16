@@ -137,6 +137,8 @@ export class P2PConnectionManager {
       connectionState: 'connecting',
       isHost: true,
       isReferee: true,
+      phase: 'waiting',
+      peerConnected: false,
       connectedAt: Date.now(),
       lastMessageAt: Date.now(),
       consecutivePingMs: 0,
@@ -159,6 +161,8 @@ export class P2PConnectionManager {
       connectionState: 'connecting',
       isHost: false,
       isReferee: false,
+      phase: 'handshake',
+      peerConnected: false,
       connectedAt: Date.now(),
       lastMessageAt: Date.now(),
       consecutivePingMs: 0,
@@ -415,8 +419,17 @@ export class P2PConnectionManager {
     }
 
     this.session.peerPlayerId = senderId;
-    this.session.peerProfile = payload;
+    this.session.peerProfile = {
+      playerId: payload.playerId,
+      playerName: payload.playerName,
+      avatar: payload.avatar,
+      rankPoints: payload.rankPoints,
+      currentRank: payload.currentRank,
+    } as any;
+    this.session.peerLoadout = payload.loadout;
+    this.session.peerConnected = true;
     this.session.connectionState = 'connected';
+    this.session.phase = 'battle_ready';
 
     this.sendHandshakeResponse(senderId, true);
     this.notifySessionUpdate();
@@ -432,8 +445,17 @@ export class P2PConnectionManager {
     }
 
     this.session.peerPlayerId = senderId;
-    this.session.peerProfile = payload;
+    this.session.peerProfile = {
+      playerId: payload.playerId,
+      playerName: payload.playerName,
+      avatar: payload.avatar,
+      rankPoints: payload.rankPoints,
+      currentRank: payload.currentRank,
+    } as any;
+    this.session.peerLoadout = payload.loadout;
+    this.session.peerConnected = true;
     this.session.connectionState = 'connected';
+    this.session.phase = 'battle_ready';
 
     if (payload.isReferee && payload.refereeSeed) {
       this.session.isReferee = false;

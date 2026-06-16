@@ -1228,6 +1228,8 @@ export interface BattleResultPayload {
   timeoutSide?: 'host' | 'client';
 }
 
+export type P2PSessionPhase = 'waiting' | 'handshake' | 'loadout_sync' | 'battle_ready' | 'battle_started' | 'finished';
+
 export interface P2PSession {
   roomCode: string;
   sessionId: string;
@@ -1237,8 +1239,12 @@ export interface P2PSession {
   connectionState: P2PConnectionState;
   isHost: boolean;
   isReferee: boolean;
-  peerProfile?: HandshakeRequestPayload;
+  phase: P2PSessionPhase;
+  peerConnected: boolean;
+  peerProfile?: ArenaPlayerProfile;
+  peerLoadout?: DefenderLoadout;
   battleInit?: BattleInitPayload;
+  connectionStats?: P2PNetworkStats;
   connectedAt: number;
   lastMessageAt: number;
   consecutivePingMs: number;
