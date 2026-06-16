@@ -193,6 +193,9 @@ export const useArenaStore = create<ArenaStore>((set, get) => ({
   error: null,
   currentBattle: null,
   activeReplay: null,
+  isP2PBattle: false,
+  p2pIsHost: false,
+  p2pBattleController: null,
 
   initializeArena: () => {
     const saved = loadArenaFromStorage();
@@ -512,6 +515,7 @@ export const useArenaStore = create<ArenaStore>((set, get) => ({
       attackerPointsChange,
       defenderPointsChange,
       isRated: battle.battleCode !== 'PRACTICE' && !!season?.isActive,
+      isP2P: false,
       replayData: replayData || (battle.isRecordingReplay ? {
         battleId: battle.battleId,
         defenderLoadoutSnapshot: payload?.loadout || createDefaultLoadout(''),
@@ -529,6 +533,7 @@ export const useArenaStore = create<ArenaStore>((set, get) => ({
           result,
         },
         recordedAt: Date.now(),
+        isP2P: false,
       } : null),
       timeoutSide: result === 'timeout' ? 'attacker' : undefined,
     };
@@ -900,6 +905,113 @@ export const useArenaStore = create<ArenaStore>((set, get) => ({
   },
 
   resetCurrentBattle: () => {
-    set({ currentBattle: null, activeReplay: null });
+    set({ currentBattle: null, activeReplay: null, isP2PBattle: false, p2pIsHost: false, p2pBattleController: null });
+  },
+
+  startP2PBattle: (controller: any, isHost: boolean) => {
+    const battleState = controller.getBattleState();
+    if (!battleState) return;
+
+    set({
+      currentBattle: battleState,
+      isP2PBattle: true,
+      p2pIsHost: isHost,
+      p2pBattleController: controller,
+      error: null,
+    });
+  },
+
+  finishP2PBattle: (result: BattleRecord['result'], replayData?: BattleReplayData, peerProfile?: ArenaPlayerProfile) => {
+    const battle = get().currentBattle;
+    const profile = get().currentProfile;
+    const season = get().currentSeason;
+    const isP2P = get().isP2PBattle;
+    const isHost = get().p2pIsHost;
+
+    if (!battle || !profile) return;
+
+    const peerPoints = peerProfile?.rankPoints || profile.rankPoints;
+
+    let attackerPointsChange = 0;
+    let defenderPointsChange = 0;
+
+    if (isP2P && season?.isActive) {
+      if (result === 'attacker_win') {
+        attackerPointsChange = get().calculatePointsChange(peerPoints, 'attacker_win');
+        defenderPointsChange = -get().calculatePointsChange(profile.rankPoints, 'defender_win');
+      } else if (result === 'defender_win') {
+        attackerPointsChange = -get().calculatePointsChange(peerPoints, 'defender_win');
+        defenderPointsChange = get().calculatePointsChange(profile.rankPoints, 'attacker_win');
+      } else if (result === 'draw') {
+        attackerPointsChange = DPB;
+        defenderPointsChange = DPB;
+      } else if (result === 'timeout') {
+        attackerPointsChange = -LPB;
+        defenderPointsChange = WPB;
+      }
+    }
+
+    const myPointsChange = isHost ? attackerPointsChange : defenderPointsChange;
+    const newRankStars = isP2P && season?.isActive ? get().updateRankPoints(myPointsChange) : null;
+
+    const record: BattleRecord = {
+      battleId: battle.battleId,
+      seasonId: season?.seasonId || 'unknown',
+      attackerPlayerId: isHost ? profile.playerId : peerProfile?.playerId || 'unknown',
+      attackerName: isHost ? profile.playerName : peerProfile?.playerName || '对手',
+      defenderPlayerId: isHost ? peerProfile?.playerId || 'unknown' : profile.playerId,
+      defenderName: isHost ? peerProfile?.playerName || '对手' : profile.playerName,
+      defenderLoadoutId: 'p2p_loadout',
+      battleCode: battle.battleCode,
+      result,
+      attackerHpRemaining: isHost ? battle.playerHp : battle.enemyHp,
+      defenderHpRemaining: isHost ? battle.enemyHp : battle.playerHp,
+      totalTurns: battle.turn,
+      durationMs: Date.now() - battle.battleStartTime,
+      startedAt: battle.battleStartTime,
+      endedAt: Date.now(),
+      attackerPointsChange,
+      defenderPointsChange,
+      isRated: isP2P && !!season?.isActive,
+      replayData: replayData || (battle.isRecordingReplay ? {
+        battleId: battle.battleId,
+        defenderLoadoutSnapshot: get().currentLoadout || createDefaultLoadout(''),
+        attackerSpells: battle.playerSpells.map(s => s.id),
+        initialState: {
+          attackerHp: battle.playerMaxHp,
+          defenderHp: battle.enemyMaxHp,
+          attackerMaxHp: battle.playerMaxHp,
+          defenderMaxHp: battle.enemyMaxHp,
+        },
+        actions: battle.replayActions,
+        finalState: {
+          attackerHp: battle.playerHp,
+          defenderHp: battle.enemyHp,
+          result,
+        },
+        recordedAt: Date.now(),
+        isP2P: true,
+        hostPlayerId: isHost ? profile.playerId : peerProfile?.playerId,
+        clientPlayerId: isHost ? peerProfile?.playerId : profile.playerId,
+      } : null),
+      timeoutSide: result === 'timeout' ? (isHost ? 'attacker' : 'defender') : undefined,
+      isP2P: true,
+    };
+
+    const updatedHistory = [record, ...get().battleHistory].slice(0, 100);
+
+    try {
+      if (result === 'attacker_win' && isHost) {
+        useAchievementStore.getState().recordPVPWin();
+      } else if (result === 'defender_win' && !isHost) {
+        useAchievementStore.getState().recordPVPWin();
+      }
+    } catch { /* non-critical */ }
+
+    set({
+      battleHistory: updatedHistory,
+      currentBattle: { ...battle, isFinished: true, battleStatus: result === 'attacker_win' ? 'victory' : 'defeat' },
+    });
+    get().saveArenaData();
   },
 }));

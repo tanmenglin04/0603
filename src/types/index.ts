@@ -886,6 +886,7 @@ export interface BattleRecord {
   attackerPointsChange: number;
   defenderPointsChange: number;
   isRated: boolean;
+  isP2P: boolean;
   replayData: BattleReplayData | null;
   timeoutSide?: 'attacker' | 'defender';
 }
@@ -918,6 +919,9 @@ export interface BattleReplayData {
     result: BattleRecord['result'];
   };
   recordedAt: number;
+  isP2P: boolean;
+  hostPlayerId?: string;
+  clientPlayerId?: string;
 }
 
 export interface PVPBattleState {
@@ -1033,6 +1037,9 @@ export interface ArenaStoreState {
   error: string | null;
   currentBattle: PVPBattleState | null;
   activeReplay: BattleReplayData | null;
+  isP2PBattle: boolean;
+  p2pIsHost: boolean;
+  p2pBattleController: any | null;
 }
 
 export interface ArenaStoreActions {
@@ -1063,6 +1070,8 @@ export interface ArenaStoreActions {
   saveArenaData: () => void;
   loadArenaData: () => void;
   resetCurrentBattle: () => void;
+  startP2PBattle: (controller: any, isHost: boolean) => void;
+  finishP2PBattle: (result: BattleRecord['result'], replayData?: BattleReplayData, peerProfile?: ArenaPlayerProfile) => void;
 }
 
 export type ArenaStore = ArenaStoreState & ArenaStoreActions;
@@ -1093,6 +1102,169 @@ export interface NetworkMonitorState {
   packetLoss: number;
   lastSyncTime: number;
 }
+
+// ============== 点对点联机系统类型定义 ==============
+
+export type P2PConnectionState = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'reconnecting' | 'error';
+
+export type P2PRole = 'host' | 'client' | 'referee';
+
+export type P2PMessageType = 
+  | 'ping'
+  | 'pong'
+  | 'handshake_request'
+  | 'handshake_response'
+  | 'loadout_sync'
+  | 'battle_init'
+  | 'turn_action'
+  | 'turn_ack'
+  | 'state_hash'
+  | 'disconnect'
+  | 'reconnect_request'
+  | 'reconnect_response'
+  | 'timeout_warning'
+  | 'battle_result'
+  | 'chat_message';
+
+export interface P2PMessage<T = any> {
+  type: P2PMessageType;
+  messageId: string;
+  senderId: string;
+  receiverId: string;
+  roomCode: string;
+  timestamp: number;
+  payload: T;
+  signature?: string;
+}
+
+export interface HandshakeRequestPayload {
+  playerId: string;
+  playerName: string;
+  avatar: string;
+  rankPoints: number;
+  currentRank: RankTier;
+  loadout: DefenderLoadout;
+  isReferee: boolean;
+  protocolVersion: string;
+}
+
+export interface HandshakeResponsePayload {
+  accepted: boolean;
+  playerId: string;
+  playerName: string;
+  avatar: string;
+  rankPoints: number;
+  currentRank: RankTier;
+  loadout: DefenderLoadout;
+  isReferee: boolean;
+  refereeSeed?: number;
+  error?: string;
+}
+
+export interface BattleInitPayload {
+  battleId: string;
+  refereeSeed: number;
+  hostPlayerId: string;
+  hostLoadout: DefenderLoadout;
+  clientPlayerId: string;
+  clientLoadout: DefenderLoadout;
+  initialGridSeed: number;
+  startTime: number;
+  hostGoesFirst: boolean;
+  isRated: boolean;
+}
+
+export interface TurnActionPayload {
+  turn: number;
+  actionType: 'match_runes' | 'cast_spell' | 'cast_combo_spell' | 'end_turn';
+  actionData: any;
+  stateAfter: {
+    playerHp: number;
+    enemyHp: number;
+    playerEnergy: EnergyPool;
+    enemyEnergy: EnergyPool;
+    gridHash: string;
+  };
+  replayAction: ReplayAction;
+}
+
+export interface TurnAckPayload {
+  turn: number;
+  accepted: boolean;
+  stateHash: string;
+  error?: string;
+}
+
+export interface StateHashPayload {
+  turn: number;
+  stateHash: string;
+  fullState?: Partial<PVPBattleState>;
+}
+
+export interface ReconnectRequestPayload {
+  playerId: string;
+  lastAcknowledgedTurn: number;
+  lastActionHash: string;
+}
+
+export interface ReconnectResponsePayload {
+  accepted: boolean;
+  currentTurn: number;
+  missingActions: TurnActionPayload[];
+  currentState: Partial<PVPBattleState>;
+  error?: string;
+}
+
+export interface DisconnectPayload {
+  reason: 'timeout' | 'manual' | 'error';
+  message?: string;
+}
+
+export interface BattleResultPayload {
+  result: BattleRecord['result'];
+  winnerId: string;
+  reason: string;
+  finalStateHash: string;
+  timeoutSide?: 'host' | 'client';
+}
+
+export interface P2PSession {
+  roomCode: string;
+  sessionId: string;
+  myRole: P2PRole;
+  myPlayerId: string;
+  peerPlayerId: string | null;
+  connectionState: P2PConnectionState;
+  isHost: boolean;
+  isReferee: boolean;
+  peerProfile?: HandshakeRequestPayload;
+  battleInit?: BattleInitPayload;
+  connectedAt: number;
+  lastMessageAt: number;
+  consecutivePingMs: number;
+}
+
+export interface P2PTransportConfig {
+  transportType: 'local' | 'webrtc' | 'websocket';
+  signalServer?: string;
+  timeoutMs: number;
+  reconnectAttempts: number;
+}
+
+export interface P2PNetworkStats {
+  latency: number;
+  packetLoss: number;
+  messagesSent: number;
+  messagesReceived: number;
+  bytesSent: number;
+  bytesReceived: number;
+}
+
+export const P2P_PROTOCOL_VERSION = '1.0.0';
+export const P2P_DISCONNECT_TIMEOUT_MS = 30000;
+export const P2P_RECONNECT_WINDOW_MS = 60000;
+export const P2P_PING_INTERVAL_MS = 3000;
+export const P2P_MAX_RECONNECT_ATTEMPTS = 5;
 
 // ============== 成就系统类型定义 ==============
 

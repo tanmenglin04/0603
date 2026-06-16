@@ -675,9 +675,16 @@ export const BattleReplayPage: React.FC = () => {
                 <span className="mx-2">/</span>
                 共 <span className="text-game-gold font-bold">{totalTurnsDisp}</span> 回合
               </div>
-              <div className="text-xs text-gray-500 mt-1">
-                事件 {currentEventIdx + 1}/{currentEventCount}
-                {isUsingV2 && v2Replay ? ` · ${formatTimestamp(v2Replay.recordedAt)}` : ''}
+              <div className="flex items-center justify-center gap-2 mt-1">
+                {(battleRecord?.isP2P || replay?.isP2P) && (
+                  <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 text-xs border border-cyan-500/40">
+                    联机对战
+                  </span>
+                )}
+                <span className="text-xs text-gray-500">
+                  事件 {currentEventIdx + 1}/{currentEventCount}
+                  {isUsingV2 && v2Replay ? ` · ${formatTimestamp(v2Replay.recordedAt)}` : ''}
+                </span>
               </div>
             </div>
             <div className="flex-1 h-0.5 bg-gradient-to-l from-transparent via-red-500/50 to-red-500" />

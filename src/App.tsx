@@ -8,6 +8,7 @@ import { TowerBattlePage } from '@/pages/TowerBattlePage';
 import { ArenaHomePage } from '@/pages/ArenaHomePage';
 import { LoadoutConfigPage } from '@/pages/LoadoutConfigPage';
 import { PVPArenaPage } from '@/pages/PVPArenaPage';
+import { P2PRoomPage } from '@/pages/P2PRoomPage';
 import { BattleReplayPage } from '@/pages/BattleReplayPage';
 import { LeaderboardPage } from '@/pages/LeaderboardPage';
 import { AchievementPage } from '@/pages/AchievementPage';
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="/tower/battle/:floor" element={<TowerBattlePage />} />
         <Route path="/arena" element={<ArenaHomePage />} />
         <Route path="/arena/loadout" element={<LoadoutConfigPage />} />
+        <Route path="/arena/p2p" element={<P2PRoomPage />} />
         <Route path="/arena/battle" element={<PVPArenaPage />} />
         <Route path="/replay" element={<BattleReplayPage />} />
         <Route path="/arena/replay/:battleId" element={<BattleReplayPage />} />

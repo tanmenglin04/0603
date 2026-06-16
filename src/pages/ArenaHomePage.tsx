@@ -18,6 +18,7 @@ import {
   TextCursorInput,
   X,
   Play,
+  Users,
 } from 'lucide-react';
 import {
   RANK_CONFIGS,
@@ -392,7 +393,7 @@ export const ArenaHomePage: React.FC = () => {
             <h3 className="text-lg font-bold text-game-gold font-display">竞技入口</h3>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <button
               onClick={() => navigate('/arena/loadout')}
               className="group relative overflow-hidden bg-gradient-to-br from-blue-600/20 to-blue-900/30 border-2 border-blue-500/40 rounded-xl p-5 hover:border-blue-400 hover:scale-105 transition-all duration-300 text-left"
@@ -446,6 +447,45 @@ export const ArenaHomePage: React.FC = () => {
                 </div>
                 <h4 className="text-lg font-bold text-white mb-1">排行榜</h4>
                 <p className="text-sm text-gray-400">查看全服玩家排名</p>
+              </div>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+            <button
+              onClick={() => navigate('/arena/p2p')}
+              className="group relative overflow-hidden bg-gradient-to-br from-cyan-600/20 to-blue-900/30 border-2 border-cyan-500/40 rounded-xl p-5 hover:border-cyan-400 hover:scale-105 transition-all duration-300 text-left"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative z-10 flex items-center gap-4">
+                <div className="w-14 h-14 rounded-xl bg-cyan-500/20 flex items-center justify-center group-hover:bg-cyan-500/30 transition-colors flex-shrink-0">
+                  <Users size={28} className="text-cyan-400" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h4 className="text-lg font-bold text-white">联机对战</h4>
+                    <span className="px-2 py-0.5 text-xs bg-cyan-500/20 text-cyan-400 rounded-full">
+                      新功能
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-400">基于房间码的点对点联机，无需服务器，与好友实时对战</p>
+                </div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => navigate('/achievements')}
+              className="group relative overflow-hidden bg-gradient-to-br from-amber-600/20 to-yellow-900/30 border-2 border-amber-500/40 rounded-xl p-5 hover:border-amber-400 hover:scale-105 transition-all duration-300 text-left"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative z-10 flex items-center gap-4">
+                <div className="w-14 h-14 rounded-xl bg-amber-500/20 flex items-center justify-center group-hover:bg-amber-500/30 transition-colors flex-shrink-0">
+                  <Star size={28} className="text-amber-400" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-bold text-white mb-1">成就系统</h4>
+                  <p className="text-sm text-gray-400">查看和解锁各种成就，赢取专属奖励</p>
+                </div>
               </div>
             </button>
           </div>

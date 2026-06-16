@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useArenaStore } from '../store/useArenaStore';
 import { makeAIDecision } from '../utils/defenderAI';
 import { BattleTimeoutHandler, formatTimeRemaining } from '../utils/networkTimeout';
+import { P2PBattleController } from '../utils/p2pBattleController';
 import {
   SPELLS,
   COMBO_SPELLS,
@@ -22,6 +23,8 @@ import type {
   ReplayAction,
   EnergyPool,
   AIDecision,
+  P2PSession,
+  TurnActionPayload,
 } from '../types';
 import {
   Heart,
@@ -95,7 +98,11 @@ export const PVPArenaPage: React.FC = () => {
     currentProfile,
     startPracticeBattle,
     finishPVPBattle,
+    finishP2PBattle,
     resetCurrentBattle,
+    isP2PBattle,
+    p2pIsHost,
+    p2pBattleController,
   } = useArenaStore();
 
   const [battleState, setBattleState] = useState(currentBattle);
@@ -110,22 +117,84 @@ export const PVPArenaPage: React.FC = () => {
   const [aiThinkingStep, setAiThinkingStep] = useState(0);
   const [showResult, setShowResult] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [p2pSession, setP2PSession] = useState<P2PSession | null>(null);
+  const [isWaitingForPeer, setIsWaitingForPeer] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   const gridRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDragging = useRef(false);
   const timeoutHandlerRef = useRef<BattleTimeoutHandler | null>(null);
   const aiTimerRef = useRef<number | null>(null);
+  const p2pControllerRef = useRef<P2PBattleController | null>(null);
+  const p2pCleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    if (!currentBattle) {
+    if (!currentBattle && !isP2PBattle) {
       startPracticeBattle();
     }
-  }, [currentBattle, startPracticeBattle]);
+  }, [currentBattle, isP2PBattle, startPracticeBattle]);
 
   useEffect(() => {
-    setBattleState(currentBattle);
-  }, [currentBattle]);
+    if (isP2PBattle && p2pBattleController) {
+      p2pControllerRef.current = p2pBattleController;
+
+      const unsub1 = p2pBattleController.onStateChange((state) => {
+        setBattleState(state);
+        useArenaStore.setState({ currentBattle: state });
+        setIsWaitingForPeer(false);
+      });
+
+      const unsub2 = p2pBattleController.onBattleResult((result, replayData) => {
+        const peerProfile = p2pBattleController.getPeerProfile();
+        finishP2PBattle(result, replayData, peerProfile);
+        setShowResult(true);
+      });
+
+      const session = p2pBattleController.getSession();
+      setP2PSession(session || null);
+
+      const state = p2pBattleController.getBattleState();
+      if (state) {
+        setBattleState(state);
+        useArenaStore.setState({ currentBattle: state });
+      }
+
+      p2pCleanupRef.current = () => {
+        unsub1();
+        unsub2();
+      };
+    } else {
+      setBattleState(currentBattle);
+    }
+  }, [currentBattle, isP2PBattle, p2pBattleController, finishP2PBattle]);
+
+  useEffect(() => {
+    if (isP2PBattle && p2pBattleController) {
+      const stats = p2pBattleController.getSession()?.connectionStats;
+      if (stats) {
+        const latency = stats.averageLatency;
+        const status = latency < 100 ? 'connected' : latency < 200 ? 'warning' : 'disconnected';
+        setNetworkStatus({ status, latency });
+      }
+
+      const session = p2pBattleController.getSession();
+      setP2PSession(session || null);
+    }
+  }, [battleState?.turn, isP2PBattle, p2pBattleController]);
+
+  useEffect(() => {
+    return () => {
+      if (p2pCleanupRef.current) {
+        p2pCleanupRef.current();
+        p2pCleanupRef.current = null;
+      }
+      if (p2pControllerRef.current) {
+        p2pControllerRef.current.destroy();
+        p2pControllerRef.current = null;
+      }
+    };
+  }, []);
 
   const updateBattle = useCallback(
     (updates: Partial<typeof battleState>) => {
@@ -222,19 +291,30 @@ export const PVPArenaPage: React.FC = () => {
 
   const handleTurnTimeout = useCallback(() => {
     if (!battleState || battleState.isFinished) return;
-    if (battleState.isPlayerTurn) {
-      finishPVPBattle('timeout');
-      setShowResult(true);
+    if (isP2PBattle) {
+      if (battleState.isPlayerTurn) {
+        finishP2PBattle('timeout', undefined, p2pControllerRef.current?.getPeerProfile());
+        setShowResult(true);
+      }
     } else {
-      endAITurn();
+      if (battleState.isPlayerTurn) {
+        finishPVPBattle('timeout');
+        setShowResult(true);
+      } else {
+        endAITurn();
+      }
     }
-  }, [battleState, finishPVPBattle]);
+  }, [battleState, isP2PBattle, finishPVPBattle, finishP2PBattle]);
 
   const handleBattleTimeout = useCallback(() => {
     if (!battleState || battleState.isFinished) return;
-    finishPVPBattle('timeout');
+    if (isP2PBattle) {
+      finishP2PBattle('timeout', undefined, p2pControllerRef.current?.getPeerProfile());
+    } else {
+      finishPVPBattle('timeout');
+    }
     setShowResult(true);
-  }, [battleState, finishPVPBattle]);
+  }, [battleState, isP2PBattle, finishPVPBattle, finishP2PBattle]);
 
   const getRuneAtPosition = useCallback(
     (clientX: number, clientY: number): Rune | null => {
@@ -436,6 +516,74 @@ export const PVPArenaPage: React.FC = () => {
 
   const confirmMatch = useCallback(() => {
     if (!battleState || selectedRunes.length < 3) return;
+
+    if (isP2PBattle && p2pControllerRef.current) {
+      if (!p2pControllerRef.current.isMyTurnToPlay()) return;
+
+      const matchResult = p2pControllerRef.current.calculateLocalMatch(selectedRunes);
+      if (!matchResult) return;
+
+      const element = matchResult.element;
+      const matchLength = matchResult.matchLength;
+      const damage = matchResult.damage;
+      const energyGain = matchResult.energyGain;
+
+      const newGrid = cloneGrid(battleState.runeGrid);
+      selectedRunes.forEach((r) => {
+        newGrid[r.row][r.col].isMatched = true;
+        newGrid[r.row][r.col].isSelected = false;
+      });
+
+      p2pControllerRef.current.applyLocalMatchResult(matchResult);
+
+      const rect = gridRef.current?.getBoundingClientRect();
+      if (rect) {
+        addFloatingText(
+          `-${damage}`,
+          rect.right - 80 + Math.random() * 40,
+          rect.top + rect.height / 2 + Math.random() * 40 - 20,
+          ELEMENT_COLORS[element]
+        );
+        addFloatingText(
+          `+${energyGain}${ELEMENT_ICONS[element]}`,
+          rect.left + 80 + Math.random() * 40,
+          rect.top + rect.height / 2 + Math.random() * 40 - 20,
+          ELEMENT_COLORS[element]
+        );
+      }
+
+      const currentState = p2pControllerRef.current.getBattleState();
+      if (currentState?.enemyHp <= 0) {
+        setSelectedRunes([]);
+        setTimeout(() => {
+          setIsWaitingForPeer(true);
+          p2pControllerRef.current?.submitPlayerAction('match_runes', {
+            runes: selectedRunes.map((r) => ({ row: r.row, col: r.col, element: r.element })),
+            element,
+            matchLength,
+            damage,
+            energyGain,
+          });
+        }, 350);
+        return;
+      }
+
+      setSelectedRunes([]);
+      setIsWaitingForPeer(true);
+
+      setTimeout(() => {
+        p2pControllerRef.current?.submitPlayerAction('match_runes', {
+          runes: selectedRunes.map((r) => ({ row: r.row, col: r.col, element: r.element })),
+          element,
+          matchLength,
+          damage,
+          energyGain,
+        });
+      }, 350);
+
+      return;
+    }
+
     const element = selectedRunes[0].element;
     const matchLength = selectedRunes.length;
     const damage = calculateDamage(matchLength, element);
@@ -514,7 +662,7 @@ export const PVPArenaPage: React.FC = () => {
         setShowResult(true);
       }, 500);
     }
-  }, [battleState, selectedRunes, updateBattle, addFloatingText, addReplayAction, finishPVPBattle]);
+  }, [battleState, selectedRunes, isP2PBattle, updateBattle, addFloatingText, addReplayAction, finishPVPBattle]);
 
   const canCastSpell = useCallback(
     (spell: Spell): boolean => {
@@ -539,6 +687,58 @@ export const PVPArenaPage: React.FC = () => {
   const castSpell = useCallback(
     (spell: Spell) => {
       if (!battleState || !canCastSpell(spell)) return;
+
+      if (isP2PBattle && p2pControllerRef.current) {
+        if (!p2pControllerRef.current.isMyTurnToPlay()) return;
+
+        p2pControllerRef.current.applyLocalSpellCast(spell, false);
+
+        const rect = gridRef.current?.getBoundingClientRect();
+        if (rect) {
+          if (spell.damage > 0) {
+            addFloatingText(
+              `-${spell.damage}`,
+              rect.right - 60,
+              rect.top + rect.height / 2,
+              ELEMENT_COLORS[spell.element]
+            );
+          }
+          if (spell.heal > 0) {
+            addFloatingText(
+              `+${spell.heal}`,
+              rect.left + 60,
+              rect.top + rect.height / 2,
+              '#22c55e'
+            );
+          }
+        }
+
+        const currentState = p2pControllerRef.current.getBattleState();
+        if (currentState?.enemyHp <= 0) {
+          setTimeout(() => {
+            setIsWaitingForPeer(true);
+            p2pControllerRef.current?.submitPlayerAction('cast_spell', {
+              spellId: spell.id,
+              spellName: spell.name,
+              damage: spell.damage,
+              heal: spell.heal,
+            });
+          }, 600);
+          return;
+        }
+
+        setIsWaitingForPeer(true);
+        setTimeout(() => {
+          p2pControllerRef.current?.submitPlayerAction('cast_spell', {
+            spellId: spell.id,
+            spellName: spell.name,
+            damage: spell.damage,
+            heal: spell.heal,
+          });
+        }, 600);
+
+        return;
+      }
 
       const newPlayerEnergy = { ...battleState.playerEnergy };
       newPlayerEnergy[spell.element] -= spell.cost;
@@ -604,12 +804,54 @@ export const PVPArenaPage: React.FC = () => {
         }, 700);
       }
     },
-    [battleState, canCastSpell, updateBattle, addFloatingText, addReplayAction, finishPVPBattle]
+    [battleState, canCastSpell, isP2PBattle, updateBattle, addFloatingText, addReplayAction, finishPVPBattle]
   );
 
   const castComboSpell = useCallback(
     (spell: ComboSpell) => {
       if (!battleState || !canCastComboSpell(spell)) return;
+
+      if (isP2PBattle && p2pControllerRef.current) {
+        if (!p2pControllerRef.current.isMyTurnToPlay()) return;
+
+        p2pControllerRef.current.applyLocalSpellCast(spell, true);
+
+        const rect = gridRef.current?.getBoundingClientRect();
+        if (rect) {
+          addFloatingText(
+            `-${spell.damage}`,
+            rect.right - 60,
+            rect.top + rect.height / 2,
+            COMBO_ELEMENT_COLORS[spell.elements]
+          );
+        }
+
+        const currentState = p2pControllerRef.current.getBattleState();
+        if (currentState?.enemyHp <= 0) {
+          setTimeout(() => {
+            setIsWaitingForPeer(true);
+            p2pControllerRef.current?.submitPlayerAction('cast_combo_spell', {
+              spellId: spell.id,
+              spellName: spell.name,
+              damage: spell.damage,
+              effect: spell.effect,
+            });
+          }, 800);
+          return;
+        }
+
+        setIsWaitingForPeer(true);
+        setTimeout(() => {
+          p2pControllerRef.current?.submitPlayerAction('cast_combo_spell', {
+            spellId: spell.id,
+            spellName: spell.name,
+            damage: spell.damage,
+            effect: spell.effect,
+          });
+        }, 800);
+
+        return;
+      }
 
       const newPlayerEnergy = { ...battleState.playerEnergy };
       for (const [el, cost] of Object.entries(spell.cost)) {
@@ -661,11 +903,21 @@ export const PVPArenaPage: React.FC = () => {
         }, 900);
       }
     },
-    [battleState, canCastComboSpell, updateBattle, addFloatingText, addReplayAction, finishPVPBattle]
+    [battleState, canCastComboSpell, isP2PBattle, updateBattle, addFloatingText, addReplayAction, finishPVPBattle]
   );
 
   const endPlayerTurn = useCallback(() => {
     if (!battleState || !battleState.isPlayerTurn || battleState.isFinished) return;
+
+    if (isP2PBattle && p2pControllerRef.current) {
+      if (!p2pControllerRef.current.isMyTurnToPlay()) return;
+
+      clearSelection();
+      setIsWaitingForPeer(true);
+      p2pControllerRef.current.endLocalTurn();
+      return;
+    }
+
     clearSelection();
     const newCooldowns: Record<string, number> = {};
     Object.entries(battleState.comboSpellCooldowns).forEach(([id, cd]) => {
@@ -690,7 +942,7 @@ export const PVPArenaPage: React.FC = () => {
     timeoutHandlerRef.current?.updateActionTime();
     setIsAIThinking(true);
     setAiThinkingStep(0);
-  }, [battleState, clearSelection, updateBattle, addReplayAction]);
+  }, [battleState, clearSelection, isP2PBattle, updateBattle, addReplayAction]);
 
   const applyAIDecision = useCallback(
     (decision: AIDecision) => {
@@ -912,6 +1164,7 @@ export const PVPArenaPage: React.FC = () => {
   useEffect(() => {
     if (!battleState || battleState.isFinished) return;
     if (battleState.isPlayerTurn) return;
+    if (isP2PBattle) return;
     if (isAIThinking && aiTimerRef.current === null) {
       const steps = [
         () => setAiThinkingStep(1),
@@ -948,18 +1201,38 @@ export const PVPArenaPage: React.FC = () => {
         aiTimerRef.current = null;
       }
     };
-  }, [battleState?.isPlayerTurn, battleState?.isFinished]);
+  }, [battleState?.isPlayerTurn, battleState?.isFinished, isP2PBattle]);
 
   const handleReturnHome = () => {
+    if (p2pCleanupRef.current) {
+      p2pCleanupRef.current();
+      p2pCleanupRef.current = null;
+    }
+    if (p2pControllerRef.current) {
+      p2pControllerRef.current.destroy();
+      p2pControllerRef.current = null;
+    }
     resetCurrentBattle();
     navigate('/arena');
   };
 
   const handleRetry = () => {
+    if (p2pCleanupRef.current) {
+      p2pCleanupRef.current();
+      p2pCleanupRef.current = null;
+    }
+    if (p2pControllerRef.current) {
+      p2pControllerRef.current.destroy();
+      p2pControllerRef.current = null;
+    }
     resetCurrentBattle();
     setShowResult(false);
     setSaveSuccess(false);
-    startPracticeBattle();
+    if (!isP2PBattle) {
+      startPracticeBattle();
+    } else {
+      navigate('/arena/p2p');
+    }
   };
 
   const handleSaveReplay = () => {
@@ -1025,6 +1298,41 @@ export const PVPArenaPage: React.FC = () => {
   return (
     <div className={`min-h-screen w-full p-3 md:p-6 bg-game-bg ${battleState.screenShake ? 'shake' : ''}`}>
       <div className="max-w-7xl mx-auto">
+        {/* P2P等待提示覆盖层 */}
+        {isP2PBattle && isWaitingForPeer && !battleState.isFinished && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 pointer-events-none">
+            <div className="bg-gray-900/90 rounded-2xl p-8 border border-gray-700 text-center max-w-sm mx-4">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-500/20 flex items-center justify-center">
+                <RefreshCw size={32} className="text-blue-400 animate-spin" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">等待对手响应</h3>
+              <p className="text-gray-400 text-sm">
+                你的操作已发送，正在等待对手做出决策...
+              </p>
+              <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-500">
+                <Wifi size={14} />
+                <span>网络延迟: {networkStatus.latency}ms</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 同步错误提示 */}
+        {syncError && (
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
+            <div className="bg-red-900/90 border border-red-600 rounded-xl px-6 py-3 flex items-center gap-3">
+              <AlertTriangle size={20} className="text-red-400" />
+              <span className="text-red-200">{syncError}</span>
+              <button
+                onClick={() => setSyncError(null)}
+                className="ml-2 text-red-400 hover:text-red-300"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* 顶部信息栏 */}
         <div className="game-card p-3 md:p-4 mb-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1048,15 +1356,21 @@ export const PVPArenaPage: React.FC = () => {
                   className={battleState.isPlayerTurn ? 'text-green-400' : 'text-red-400'}
                 />
                 <span className={battleState.isPlayerTurn ? 'text-green-400 font-bold' : 'text-red-400 font-bold'}>
-                  {battleState.isPlayerTurn ? '你的回合' : 'AI回合'}
+                  {battleState.isPlayerTurn ? '你的回合' : isP2PBattle ? '对手回合' : 'AI回合'}
                 </span>
               </div>
               <div className="hidden md:flex items-center gap-2">
                 <Wifi size={18} style={{ color: netColor }} />
                 <span style={{ color: netColor }} className="font-mono text-xs">
-                  {networkStatus.latency}ms
+                  {isP2PBattle ? 'P2P ' : ''}{networkStatus.latency}ms
                 </span>
               </div>
+              {isP2PBattle && p2pSession && (
+                <div className="hidden md:flex items-center gap-1 text-xs text-gray-400">
+                  <span>房间: {p2pSession.roomCode}</span>
+                  {p2pIsHost && <span className="text-yellow-400">(主机)</span>}
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-3 text-xs md:text-sm">
