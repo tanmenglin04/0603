@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { audioManager, type AudioSettings, type GameScene, type SpellType } from './AudioManager';
+import { audioManager, type AudioSettings, type GameScene, type SpellType } from '../audio/AudioManager';
 
 interface AudioState {
   initialized: boolean;

@@ -33,9 +33,9 @@ export class AudioSynthesizer {
     this.audioContext = context;
   }
 
-  private ensureContext(): AudioContext {
+  private ensureContext(): AudioContext | null {
     if (!this.audioContext) {
-      throw new Error('AudioSynthesizer not initialized. Call init() first.');
+      return null;
     }
     return this.audioContext;
   }
@@ -49,6 +49,7 @@ export class AudioSynthesizer {
     release: number = 0.1
   ): AudioBufferSourceNode | null {
     const ctx = this.ensureContext();
+    if (!ctx) return null;
     const now = ctx.currentTime;
 
     const osc = ctx.createOscillator();
@@ -72,6 +73,7 @@ export class AudioSynthesizer {
 
   playSequence(notes: SynthNote[]): { source: AudioBufferSourceNode | null; endTime: number }[] {
     const ctx = this.ensureContext();
+    if (!ctx) return [];
     const results: { source: AudioBufferSourceNode | null; endTime: number }[] = [];
 
     notes.forEach((note) => {
@@ -109,6 +111,7 @@ export class AudioSynthesizer {
 
   playNoise(params: NoiseParams): AudioBufferSourceNode | null {
     const ctx = this.ensureContext();
+    if (!ctx) return null;
     const { duration, gain = 0.2, filterFreq = 1000, filterQ = 1, type = 'white' } = params;
 
     const bufferSize = Math.floor(ctx.sampleRate * duration);
@@ -156,6 +159,7 @@ export class AudioSynthesizer {
 
   playSweep(params: SweepParams): AudioBufferSourceNode | null {
     const ctx = this.ensureContext();
+    if (!ctx) return null;
     const { startFreq, endFreq, duration, gain = 0.3, waveform = 'sawtooth' } = params;
     const now = ctx.currentTime;
 
@@ -181,6 +185,8 @@ export class AudioSynthesizer {
 
   createFireSound(): { connect: (node: AudioNode) => void; start: () => void; stop: () => void } {
     const ctx = this.ensureContext();
+    const noop = { connect: () => {}, start: () => {}, stop: () => {} };
+    if (!ctx) return noop;
 
     const bufferSize = Math.floor(ctx.sampleRate * 2);
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
@@ -244,6 +250,8 @@ export class AudioSynthesizer {
 
   createThunderSound(): { connect: (node: AudioNode) => void; play: () => void } {
     const ctx = this.ensureContext();
+    const noop = { connect: () => {}, play: () => {} };
+    if (!ctx) return noop;
 
     const gainNode = ctx.createGain();
     gainNode.gain.value = 0;
@@ -286,6 +294,8 @@ export class AudioSynthesizer {
 
   createWaterSound(): { connect: (node: AudioNode) => void; start: () => void; stop: () => void } {
     const ctx = this.ensureContext();
+    const noop = { connect: () => {}, start: () => {}, stop: () => {} };
+    if (!ctx) return noop;
 
     const bufferSize = Math.floor(ctx.sampleRate * 2);
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
@@ -347,6 +357,8 @@ export class AudioSynthesizer {
 
   createHeartbeatSound(): { connect: (node: AudioNode) => void; play: () => void; stop: () => void } {
     const ctx = this.ensureContext();
+    const noop = { connect: () => {}, play: () => {}, stop: () => {} };
+    if (!ctx) return noop;
     const gainNode = ctx.createGain();
     gainNode.gain.value = 0;
 
@@ -406,6 +418,8 @@ export class AudioSynthesizer {
 
   createAmbientDrone(): { connect: (node: AudioNode) => void; start: () => void; stop: () => void } {
     const ctx = this.ensureContext();
+    const noop = { connect: () => {}, start: () => {}, stop: () => {} };
+    if (!ctx) return noop;
 
     const osc1 = ctx.createOscillator();
     const osc2 = ctx.createOscillator();
@@ -479,6 +493,8 @@ export class AudioSynthesizer {
 
   createBattleLoop(): { connect: (node: AudioNode) => void; start: () => void; stop: () => void; setIntensity: (intensity: number) => void } {
     const ctx = this.ensureContext();
+    const noop = { connect: () => {}, start: () => {}, stop: () => {}, setIntensity: () => {} };
+    if (!ctx) return noop;
 
     const gainNode = ctx.createGain();
     gainNode.gain.value = 0;
@@ -618,6 +634,8 @@ export class AudioSynthesizer {
 
   createMenuMusic(): { connect: (node: AudioNode) => void; start: () => void; stop: () => void } {
     const ctx = this.ensureContext();
+    const noop = { connect: () => {}, start: () => {}, stop: () => {} };
+    if (!ctx) return noop;
 
     const gainNode = ctx.createGain();
     gainNode.gain.value = 0;
@@ -730,6 +748,8 @@ export class AudioSynthesizer {
 
   createVictoryFanfare(): { connect: (node: AudioNode) => void; play: () => void } {
     const ctx = this.ensureContext();
+    const noop = { connect: () => {}, play: () => {} };
+    if (!ctx) return noop;
     const gainNode = ctx.createGain();
     gainNode.gain.value = 0;
 
@@ -787,6 +807,8 @@ export class AudioSynthesizer {
 
   createDefeatMusic(): { connect: (node: AudioNode) => void; play: () => void } {
     const ctx = this.ensureContext();
+    const noop = { connect: () => {}, play: () => {} };
+    if (!ctx) return noop;
     const gainNode = ctx.createGain();
     gainNode.gain.value = 0;
 
