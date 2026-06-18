@@ -400,6 +400,9 @@ interface ExtendedTowerActions {
   hasMadeChoiceForTheme: (themeIndex: number) => boolean;
   getCritChance: () => number;
   getRegenPerTurn: () => number;
+  getDamageMultiplier: () => number;
+  getShieldPerTurn: () => number;
+  getStartShield: () => number;
 }
 
 export const useTowerStore = create<TowerStore & ExtendedTowerState & ExtendedTowerActions>((set, get) => ({
@@ -729,6 +732,9 @@ export const useTowerStore = create<TowerStore & ExtendedTowerState & ExtendedTo
 
   getCritChance: () => get().branchEffects.critChance,
   getRegenPerTurn: () => get().branchEffects.regenPerTurn,
+  getDamageMultiplier: () => get().branchEffects.damageMultiplier,
+  getShieldPerTurn: () => get().branchEffects.shieldPerTurn,
+  getStartShield: () => get().branchEffects.startShield,
 
   prepareBattle: () => {
     const { currentFloorData } = get();

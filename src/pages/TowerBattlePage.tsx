@@ -20,12 +20,15 @@ import type {
   Enemy, 
   ElementType, 
   ComboElementType,
-  SpecialTileConfig
+  SpecialTileConfig,
+  TowerDebuff,
+  TowerDebuffType
 } from '../types';
 import { 
   DEFAULT_BEHAVIOR_STATE, 
   SPELLS, 
-  ELEMENT_ICONS
+  ELEMENT_ICONS,
+  TOWER_DEBUFFS
 } from '../types';
 import {
   canAddToSelection,
@@ -80,10 +83,35 @@ interface TowerBattleState {
   playerMaxHpRef: { current: number };
   towerBlessings: string[];
   excludedElements: string[];
+  towerDebuffs: TowerDebuff[];
+  towerDebuffTypes: TowerDebuffType[];
+  branchCritChance: number;
+  branchRegenPerTurn: number;
+  branchDamageMultiplier: number;
+  branchShieldPerTurn: number;
+  branchStartShield: number;
+  playerShieldRef: { current: number };
+  canComboSpell: boolean;
+  firstTurnSpellLocked: boolean;
 }
 
 interface TowerBattleActions {
-  initBattle: (enemy: Enemy, gridSize: number, maxEnergy: number, specialTiles: Partial<SpecialTileConfig> & { excludedElements?: string[] }, healMultiplier: number, playerHp: number, playerMaxHp: number, blessings: string[]) => void;
+  initBattle: (
+    enemy: Enemy, 
+    gridSize: number, 
+    maxEnergy: number, 
+    specialTiles: Partial<SpecialTileConfig> & { excludedElements?: string[] }, 
+    healMultiplier: number, 
+    playerHp: number, 
+    playerMaxHp: number, 
+    blessings: string[],
+    debuffs: TowerDebuff[],
+    branchCritChance: number,
+    branchRegenPerTurn: number,
+    branchDamageMultiplier: number,
+    branchShieldPerTurn: number,
+    branchStartShield: number
+  ) => void;
   selectRune: (rune: Rune) => void;
   addSelectedRune: (rune: Rune) => void;
   clearSelectedRunes: () => void;
@@ -262,7 +290,7 @@ const canCastComboSpellWithAdjustment = (spell: ComboSpell, energy: EnergyPoolTy
   });
 };
 
-const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
+export const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
   energy: { ...initialEnergy },
   runeGrid: [],
   selectedRunes: [],
@@ -287,10 +315,36 @@ const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
   playerMaxHpRef: { current: 100 },
   towerBlessings: [],
   excludedElements: [],
+  towerDebuffs: [],
+  towerDebuffTypes: [],
+  branchCritChance: 0,
+  branchRegenPerTurn: 0,
+  branchDamageMultiplier: 0,
+  branchShieldPerTurn: 0,
+  branchStartShield: 0,
+  playerShieldRef: { current: 0 },
+  canComboSpell: true,
+  firstTurnSpellLocked: false,
 
-  initBattle: (enemy, gridSize, maxEnergy, specialTiles, healMultiplier, playerHp, playerMaxHp, blessings) => {
+  initBattle: (
+    enemy, 
+    gridSize, 
+    maxEnergy, 
+    specialTiles, 
+    healMultiplier, 
+    playerHp, 
+    playerMaxHp, 
+    blessings,
+    debuffs,
+    branchCritChance,
+    branchRegenPerTurn,
+    branchDamageMultiplier,
+    branchShieldPerTurn,
+    branchStartShield
+  ) => {
     const enemyUnits: CombatUnit[] = [enemy];
     const excludedElements = specialTiles.excludedElements || [];
+    const debuffTypes = debuffs.map(d => d.type);
     
     let energy = { ...initialEnergy };
     const equippedItems = getEquippedItems();
@@ -302,12 +356,26 @@ const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
       }
     }
 
+    if (debuffTypes.includes('mana_drain')) {
+      Object.keys(energy).forEach(key => {
+        const k = key as keyof EnergyPoolType;
+        energy[k] = Math.max(0, energy[k] - 2);
+      });
+    }
+
     if (blessings.includes('double_first_energy')) {
       Object.keys(energy).forEach(key => {
         const k = key as keyof EnergyPoolType;
         energy[k] = Math.min(maxEnergy, energy[k] * 2);
       });
     }
+
+    const canComboSpell = !debuffTypes.includes('spell_seal');
+    const firstTurnSpellLocked = debuffTypes.includes('dragon_fear');
+
+    const initialShield = branchStartShield 
+      + (blessings.includes('start_with_shield') ? 15 : 0)
+      + (blessings.includes('damage_shield') ? 20 : 0);
 
     set({
       energy,
@@ -334,6 +402,16 @@ const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
       playerHpRef: { current: playerHp },
       playerMaxHpRef: { current: playerMaxHp },
       towerBlessings: blessings,
+      towerDebuffs: debuffs,
+      towerDebuffTypes: debuffTypes,
+      branchCritChance,
+      branchRegenPerTurn,
+      branchDamageMultiplier,
+      branchShieldPerTurn,
+      branchStartShield,
+      playerShieldRef: { current: initialShield },
+      canComboSpell,
+      firstTurnSpellLocked,
     });
   },
 
@@ -342,6 +420,39 @@ const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
   },
 
   getPlayerHp: () => get().playerHpRef.current,
+
+  getPlayerShield: () => get().playerShieldRef.current,
+
+  applyDamageWithShield: (rawDamage: number): number => {
+    const { towerDebuffTypes, playerShieldRef, playerMaxHpRef } = get();
+    let damage = rawDamage;
+    if (towerDebuffTypes.includes('curse')) {
+      damage = Math.floor(damage * 1.25);
+    }
+    let shieldAbsorbed = 0;
+    if (playerShieldRef.current > 0) {
+      let shieldEfficiency = 1;
+      if (towerDebuffTypes.includes('despair')) {
+        shieldEfficiency = 0.5;
+      }
+      const effectiveShield = Math.floor(playerShieldRef.current * shieldEfficiency);
+      shieldAbsorbed = Math.min(effectiveShield, damage);
+      const actualShieldDeduction = shieldEfficiency === 1 
+        ? shieldAbsorbed 
+        : Math.ceil(shieldAbsorbed / shieldEfficiency);
+      set(state => ({
+        playerShieldRef: { ...state.playerShieldRef, current: Math.max(0, state.playerShieldRef.current - actualShieldDeduction) }
+      }));
+      damage -= shieldAbsorbed;
+    }
+    return Math.max(0, damage);
+  },
+
+  addPlayerShield: (amount: number) => {
+    set(state => ({
+      playerShieldRef: { ...state.playerShieldRef, current: state.playerShieldRef.current + amount }
+    }));
+  },
 
   selectRune: (rune: Rune) => {
     const { isPlayerTurn, battleStatus, isAnimating } = get();
@@ -485,7 +596,7 @@ const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
   },
 
   confirmMatch: () => {
-    const { selectedRunes, comboCount, isPlayerTurn, battleStatus, isAnimating, towerBlessings } = get();
+    const { selectedRunes, comboCount, isPlayerTurn, battleStatus, isAnimating, towerBlessings, towerDebuffTypes } = get();
     if (!isPlayerTurn || battleStatus !== 'playing' || isAnimating) return;
 
     if (selectedRunes.length < 3) {
@@ -513,6 +624,7 @@ const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
     const newEnergy = { ...currentEnergy };
     const equippedItems = getEquippedItems();
     const bonuses = getEquipmentBonuses(equippedItems);
+    const hasCorruption = towerDebuffTypes.includes('corruption');
     Object.entries(energyGain).forEach(([key, value]) => {
       const k = key as keyof EnergyPoolType;
       let gain = value || 0;
@@ -522,6 +634,9 @@ const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
       }
       if (towerBlessings.includes('double_combo') && comboCount > 0) {
         gain *= 2;
+      }
+      if (hasCorruption) {
+        gain = Math.floor(gain * 0.7);
       }
       newEnergy[k] = Math.min(get().maxEnergy, currentEnergy[k] + gain);
       if (gain > 0) {
@@ -569,6 +684,9 @@ const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
                   if (towerBlessings.includes('double_combo')) {
                     amount *= 2;
                   }
+                  if (hasCorruption) {
+                    amount = Math.floor(amount * 0.7);
+                  }
                   newEnergy[k] = Math.min(get().maxEnergy, newEnergy[k] + amount);
                 });
               }
@@ -595,8 +713,13 @@ const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
   },
 
   castSpell: (spell: Spell) => {
-    const { isPlayerTurn, battleStatus, isAnimating, energy, enemyUnits, selectedTargetId, healMultiplier, towerBlessings, excludedElements } = get();
+    const { isPlayerTurn, battleStatus, isAnimating, energy, enemyUnits, selectedTargetId, healMultiplier, towerBlessings, excludedElements, towerDebuffTypes, branchCritChance, branchDamageMultiplier, firstTurnSpellLocked, turn } = get();
     if (!isPlayerTurn || battleStatus !== 'playing' || isAnimating) return;
+
+    if (firstTurnSpellLocked && turn === 1) {
+      get().addFloatingText('龙威震慑!', 300, 250, 'red');
+      return;
+    }
 
     const adjustedCost = getAdjustedSpellCost(spell, excludedElements);
     if (energy[spell.element] < adjustedCost) return;
@@ -661,7 +784,13 @@ const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
       damage = Math.floor(damage * (1 + spellDmgBonus / 100));
     }
 
-    if (towerBlessings.includes('critical_hit') && Math.random() < 0.2) {
+    if (branchDamageMultiplier !== 0) {
+      damage = Math.floor(damage * (1 + branchDamageMultiplier));
+    }
+
+    const baseCritChance = towerBlessings.includes('critical_hit') ? 0.2 : 0;
+    const totalCritChance = baseCritChance + branchCritChance;
+    if (totalCritChance > 0 && Math.random() < totalCritChance) {
       damage = Math.floor(damage * 1.5);
       get().addFloatingText('暴击!', 400, 120, 'yellow');
     }
@@ -701,14 +830,30 @@ const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
     if (healAmount > 0) {
       healAmount = Math.floor(healAmount * healMultiplier);
     }
-    const newPlayerHp = Math.min(get().playerMaxHpRef.current, get().playerHpRef.current + healAmount);
-    set(state => ({ playerHpRef: { ...state.playerHpRef, current: newPlayerHp } }));
+    let currentHp = get().playerHpRef.current;
+    if (healAmount > 0) {
+      if (towerDebuffTypes.includes('void_touch')) {
+        const voidDamage = healAmount;
+        currentHp = Math.max(0, currentHp - voidDamage);
+        get().addFloatingText(`虚空之触! -${voidDamage}`, 200, 400, 'purple');
+      } else {
+        currentHp = Math.min(get().playerMaxHpRef.current, currentHp + healAmount);
+      }
+    }
+    set(state => ({ playerHpRef: { ...state.playerHpRef, current: currentHp } }));
 
     if (towerBlessings.includes('life_steal') && finalDamage > 0) {
       const lifeSteal = Math.floor(finalDamage * 0.1);
-      const healedHp = Math.min(get().playerMaxHpRef.current, get().playerHpRef.current + lifeSteal);
-      set(state => ({ playerHpRef: { ...state.playerHpRef, current: healedHp } }));
-      get().addFloatingText(`汲取 +${lifeSteal}`, 200, 420, 'green');
+      let newHpAfterSteal = get().playerHpRef.current;
+      if (towerDebuffTypes.includes('void_touch')) {
+        newHpAfterSteal = Math.max(0, newHpAfterSteal - lifeSteal);
+      } else {
+        newHpAfterSteal = Math.min(get().playerMaxHpRef.current, newHpAfterSteal + lifeSteal);
+      }
+      set(state => ({ playerHpRef: { ...state.playerHpRef, current: newHpAfterSteal } }));
+      if (!towerDebuffTypes.includes('void_touch')) {
+        get().addFloatingText(`汲取 +${lifeSteal}`, 200, 420, 'green');
+      }
     }
 
     setTimeout(() => {
@@ -746,8 +891,18 @@ const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
   },
 
   castComboSpell: (spell: ComboSpell) => {
-    const { isPlayerTurn, battleStatus, isAnimating, energy, enemyUnits, selectedTargetId, comboSpellCooldowns, towerBlessings, excludedElements } = get();
+    const { isPlayerTurn, battleStatus, isAnimating, energy, enemyUnits, selectedTargetId, comboSpellCooldowns, towerBlessings, excludedElements, towerDebuffTypes, branchCritChance, branchDamageMultiplier, canComboSpell, firstTurnSpellLocked, turn } = get();
     if (!isPlayerTurn || battleStatus !== 'playing' || isAnimating) return;
+
+    if (!canComboSpell) {
+      get().addFloatingText('法术封印!', 300, 250, 'purple');
+      return;
+    }
+
+    if (firstTurnSpellLocked && turn === 1) {
+      get().addFloatingText('龙威震慑!', 300, 250, 'red');
+      return;
+    }
 
     if (!canCastComboSpellWithAdjustment(spell, energy, excludedElements)) return;
     if (comboSpellCooldowns[spell.id] > 0) return;
@@ -816,7 +971,13 @@ const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
       damage = Math.floor(damage * (1 + avgDmgBonus / 100));
     }
 
-    if (towerBlessings.includes('critical_hit') && Math.random() < 0.2) {
+    if (branchDamageMultiplier !== 0) {
+      damage = Math.floor(damage * (1 + branchDamageMultiplier));
+    }
+
+    const baseCritChance = towerBlessings.includes('critical_hit') ? 0.2 : 0;
+    const totalCritChance = baseCritChance + branchCritChance;
+    if (totalCritChance > 0 && Math.random() < totalCritChance) {
       damage = Math.floor(damage * 1.5);
       get().addFloatingText('暴击!', 400, 120, 'yellow');
     }
@@ -847,9 +1008,16 @@ const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
 
     if (towerBlessings.includes('life_steal') && finalDamage > 0) {
       const lifeSteal = Math.floor(finalDamage * 0.1);
-      const newHp = Math.min(get().playerMaxHpRef.current, get().playerHpRef.current + lifeSteal);
+      let newHp = get().playerHpRef.current;
+      if (towerDebuffTypes.includes('void_touch')) {
+        newHp = Math.max(0, newHp - lifeSteal);
+      } else {
+        newHp = Math.min(get().playerMaxHpRef.current, newHp + lifeSteal);
+      }
       set(state => ({ playerHpRef: { ...state.playerHpRef, current: newHp } }));
-      get().addFloatingText(`汲取 +${lifeSteal}`, 200, 420, 'green');
+      if (!towerDebuffTypes.includes('void_touch')) {
+        get().addFloatingText(`汲取 +${lifeSteal}`, 200, 420, 'green');
+      }
     }
 
     const newCooldowns = { ...comboSpellCooldowns };
@@ -890,7 +1058,7 @@ const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
   },
 
   endTurn: () => {
-    const { battleStatus, enemy, hasExtraTurn, extraTurnUsed, towerBlessings } = get();
+    const { battleStatus, enemy, hasExtraTurn, extraTurnUsed, towerBlessings, towerDebuffTypes, branchRegenPerTurn, branchShieldPerTurn, turn, playerShieldRef, playerHpRef, playerMaxHpRef } = get();
     if (battleStatus !== 'playing' || !enemy) return;
 
     if (hasExtraTurn && !extraTurnUsed) {
@@ -910,6 +1078,65 @@ const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
         newEnergy[toEl] = Math.min(get().maxEnergy, newEnergy[toEl] + 1);
         set({ energy: newEnergy });
         get().addFloatingText(`能量转换: ${fromEl}→${toEl}`, 300, 350, 'purple');
+      }
+    }
+
+    let totalDotDamage = 0;
+    const dotParts: string[] = [];
+    if (towerDebuffTypes.includes('poison_aura')) {
+      totalDotDamage += 5;
+      dotParts.push('毒雾 -5');
+    }
+    if (towerDebuffTypes.includes('lava_burn') || towerDebuffTypes.includes('burn')) {
+      totalDotDamage += 3;
+      dotParts.push('灼烧 -3');
+    }
+    if (towerDebuffTypes.includes('poison')) {
+      totalDotDamage += 2;
+      dotParts.push('毒素 -2');
+    }
+
+    let totalRegen = branchRegenPerTurn;
+    if (towerBlessings.includes('holy_shield')) totalRegen += 5;
+    if (towerBlessings.includes('nature_ward')) totalRegen += 2;
+    if (towerBlessings.includes('angel_blessing')) totalRegen += 4;
+    if (towerBlessings.includes('dragon_lullaby')) totalRegen += 3;
+    if (towerBlessings.includes('empathy_resonance')) totalRegen += 3;
+    if (towerBlessings.includes('light_vessel')) totalRegen += 4;
+
+    if (towerBlessings.includes('damage_shield') && turn % 3 === 0) {
+      set(state => ({
+        playerShieldRef: { ...state.playerShieldRef, current: state.playerShieldRef.current + 20 }
+      }));
+      get().addFloatingText('护盾 +20', 200, 430, 'blue');
+    }
+    if (branchShieldPerTurn > 0) {
+      set(state => ({
+        playerShieldRef: { ...state.playerShieldRef, current: state.playerShieldRef.current + branchShieldPerTurn }
+      }));
+      get().addFloatingText(`护盾 +${branchShieldPerTurn}`, 200, 450, 'blue');
+    }
+
+    if (totalDotDamage > 0 || totalRegen > 0) {
+      let hp = playerHpRef.current;
+      if (totalDotDamage > 0) {
+        const actualDamage = get().applyDamageWithShield(totalDotDamage);
+        hp = Math.max(0, hp - actualDamage);
+        dotParts.forEach(p => get().addFloatingText(p, 200, 380, 'red'));
+      }
+      if (totalRegen > 0) {
+        if (towerDebuffTypes.includes('void_touch')) {
+          hp = Math.max(0, hp - totalRegen);
+          get().addFloatingText(`虚空之触! -${totalRegen}`, 200, 400, 'purple');
+        } else {
+          hp = Math.min(playerMaxHpRef.current, hp + totalRegen);
+          get().addFloatingText(`回复 +${totalRegen}`, 200, 400, 'green');
+        }
+      }
+      set(state => ({ playerHpRef: { ...state.playerHpRef, current: hp } }));
+      if (hp <= 0) {
+        set({ battleStatus: 'defeat' });
+        return;
       }
     }
 
@@ -952,7 +1179,7 @@ const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
   },
 
   enemyAttack: () => {
-    const { enemy, enemyUnits, turn, runeGrid, towerBlessings } = get();
+    const { enemy, enemyUnits, turn, runeGrid, towerBlessings, towerDebuffTypes } = get();
     if (!enemy) return;
 
     let updatedEnemy = { ...enemy };
@@ -1007,10 +1234,11 @@ const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
 
     let playerHp = get().playerHpRef.current;
     if (minionDamage > 0) {
-      playerHp = Math.max(0, playerHp - minionDamage);
+      const actualMinionDamage = get().applyDamageWithShield(minionDamage);
+      playerHp = Math.max(0, playerHp - actualMinionDamage);
       get().setScreenShake(true);
       setTimeout(() => get().setScreenShake(false), 300);
-      get().addFloatingText(`小怪伤害 -${minionDamage}`, 200, 380, 'purple');
+      get().addFloatingText(`小怪伤害 -${actualMinionDamage}`, 200, 380, 'purple');
     }
 
     explosions.forEach(explosion => {
@@ -1031,6 +1259,26 @@ const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
         isPlayerTurn: true,
         runeGrid: updatedGrid,
         battleStatus: 'defeat',
+      });
+      return;
+    }
+
+    if (towerDebuffTypes.includes('fear') && Math.random() < 0.25) {
+      get().addFloatingText('恐惧! 敌人被震慑', 400, 250, 'purple');
+      const newAttackIndex = (updatedEnemy.currentAttackIndex + 1) % updatedEnemy.attackPattern.length;
+      updatedEnemy.currentAttackIndex = newAttackIndex;
+      currentUnits = currentUnits.map(u => 
+        u.type === 'enemy' ? updatedEnemy : u
+      );
+      const updatedGrid = decrementDoubleEnergyTurns(runeGrid);
+      get().decrementCooldowns();
+      set(state => ({ playerHpRef: { ...state.playerHpRef, current: playerHp } }));
+      set({
+        enemy: updatedEnemy,
+        enemyUnits: currentUnits,
+        turn: turn + 1,
+        isPlayerTurn: true,
+        runeGrid: updatedGrid,
       });
       return;
     }
@@ -1060,12 +1308,20 @@ const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
       get().addFloatingText(`荆棘反弹 -${thornDamage}`, 400, 280, 'green');
     }
 
+    if (towerDebuffTypes.includes('mind_control') && Math.random() < 0.2 && actualDamage > 0) {
+      const selfInflicted = Math.floor(actualDamage * 0.5);
+      playerHp = Math.max(0, playerHp - selfInflicted);
+      get().addFloatingText(`精神控制! 自残 -${selfInflicted}`, 200, 370, 'purple');
+      actualDamage = Math.floor(actualDamage * 0.5);
+    }
+
     if (actualDamage > 0) {
-      playerHp = Math.max(0, playerHp - actualDamage);
+      const shieldedDamage = get().applyDamageWithShield(actualDamage);
+      playerHp = Math.max(0, playerHp - shieldedDamage);
       get().setScreenShake(true);
       setTimeout(() => get().setScreenShake(false), 300);
 
-      let damageText = `-${actualDamage}`;
+      let damageText = `-${shieldedDamage}`;
       if (updatedEnemy.behaviorState.isBerserk) {
         damageText += ' (狂暴)';
       }
@@ -1194,6 +1450,11 @@ export const TowerBattlePage: React.FC = () => {
     hasBlessing,
     addShield,
     currentBlessings,
+    getCritChance,
+    getRegenPerTurn,
+    getDamageMultiplier,
+    getShieldPerTurn,
+    getStartShield,
   } = useTowerStore();
 
   const store = useTowerBattleStore();
@@ -1220,6 +1481,8 @@ export const TowerBattlePage: React.FC = () => {
     screenShake: store.screenShake,
     playerHp: store.playerHpRef.current,
     playerMaxHp: store.playerMaxHpRef.current,
+    playerShield: store.playerShieldRef.current,
+    towerDebuffTypes: store.towerDebuffTypes,
     castSpell: store.castSpell,
     castComboSpell: store.castComboSpell,
     selectTarget: store.selectTarget,
@@ -1235,6 +1498,12 @@ export const TowerBattlePage: React.FC = () => {
       const maxEnergy = getMaxEnergy();
       const specialTiles = getSpecialTiles();
       const healMult = getHealMultiplier();
+      const critChance = getCritChance();
+      const regenPerTurn = getRegenPerTurn();
+      const damageMultiplier = getDamageMultiplier();
+      const shieldPerTurn = getShieldPerTurn();
+      const startShield = getStartShield();
+      const towerDebuffs = currentFloorData.debuffs || [];
       
       initBattle(
         currentFloorData.enemy,
@@ -1244,11 +1513,17 @@ export const TowerBattlePage: React.FC = () => {
         healMult,
         playerHp,
         playerMaxHp,
-        currentBlessings
+        currentBlessings,
+        towerDebuffs,
+        critChance,
+        regenPerTurn,
+        damageMultiplier,
+        shieldPerTurn,
+        startShield
       );
       setInitialized(true);
     }
-  }, [currentFloorData, initialized, initBattle, getGridSize, getMaxEnergy, getSpecialTiles, getHealMultiplier, playerHp, playerMaxHp, currentBlessings]);
+  }, [currentFloorData, initialized, initBattle, getGridSize, getMaxEnergy, getSpecialTiles, getHealMultiplier, playerHp, playerMaxHp, currentBlessings, getCritChance, getRegenPerTurn, getDamageMultiplier, getShieldPerTurn, getStartShield]);
 
   useEffect(() => {
     const currentBattleHp = getPlayerHp();
@@ -1323,13 +1598,15 @@ export const TowerBattlePage: React.FC = () => {
 };
 
 const TowerTurnInfo: React.FC = () => {
-  const { turn, isPlayerTurn, enemy } = useTowerBattleStore();
+  const { turn, isPlayerTurn, enemy, towerDebuffTypes } = useTowerBattleStore();
   const { currentFloorData } = useTowerStore();
 
   const getNextAttackDamage = () => {
     if (!enemy) return 0;
     return enemy.attackPattern[enemy.currentAttackIndex];
   };
+
+  const isBlind = towerDebuffTypes.includes('blind');
 
   return (
     <div className="game-card p-4 flex items-center justify-between">
@@ -1353,7 +1630,11 @@ const TowerTurnInfo: React.FC = () => {
         )}
         {enemy && (
           <div className="text-gray-400">
-            下次攻击: <span className="text-red-400 font-bold">{getNextAttackDamage()}</span> 伤害
+            下次攻击: {isBlind ? (
+              <span className="text-red-400 font-bold">???</span>
+            ) : (
+              <span className="text-red-400 font-bold">{getNextAttackDamage()}</span>
+            )} 伤害
           </div>
         )}
       </div>
@@ -1665,11 +1946,12 @@ const useTowerRuneConnection = ({
 };
 
 const TowerPlayerStatus: React.FC = () => {
-  const { playerHp, playerMaxHp, playerShield } = useTowerStore();
-  const { getPlayerHp } = useTowerBattleStore();
+  const { playerHp: storePlayerHp, playerMaxHp } = useTowerStore();
+  const { getPlayerHp, playerShieldRef } = useTowerBattleStore();
   
   const battleHp = getPlayerHp();
-  const displayHp = battleHp > 0 ? battleHp : playerHp;
+  const displayHp = battleHp > 0 ? battleHp : storePlayerHp;
+  const battleShield = playerShieldRef?.current ?? 0;
 
   const hpPercent = (displayHp / playerMaxHp) * 100;
   const hpColor = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
@@ -1693,16 +1975,16 @@ const TowerPlayerStatus: React.FC = () => {
             />
           </div>
         </div>
-        {playerShield > 0 && (
+        {battleShield > 0 && (
           <div>
             <div className="flex justify-between text-sm mb-1">
               <span className="text-gray-400">护盾</span>
-              <span className="text-blue-400">{playerShield}</span>
+              <span className="text-blue-400">{battleShield}</span>
             </div>
             <div className="h-2 bg-game-bg-dark rounded-full overflow-hidden">
               <div
                 className="h-full bg-blue-500 transition-all duration-300"
-                style={{ width: `${Math.min(100, (playerShield / 50) * 100)}%` }}
+                style={{ width: `${Math.min(100, (battleShield / 50) * 100)}%` }}
               />
             </div>
           </div>

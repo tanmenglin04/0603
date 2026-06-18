@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useBattleStore } from '../contexts/BattleContext';
 import { ELEMENT_NAMES, ELEMENT_COLORS, STATUS_EFFECT_NAMES, STATUS_EFFECT_ICONS, ENEMY_BEHAVIOR_ICONS, ENEMY_AI_PRIORITY_NAMES } from '../types';
 import type { ElementType, StatusEffect, Minion, Enemy } from '../types';
 import { getNextAttackPreview } from '../utils/enemyAI';
+import { useTowerBattleStore } from '../pages/TowerBattlePage';
 
 interface MinionCardProps {
   minion: Minion;
@@ -67,6 +68,22 @@ const MainEnemyCard: React.FC<MainEnemyCardProps> = ({ enemy, isSelected, onSele
   const { chargeState, defenseState, isBerserk, currentBehavior } = enemy.behaviorState;
   const hpPercent = enemy.currentHp / enemy.maxHp;
   const berserkThreshold = enemy.aiConfig.berserkThreshold;
+  
+  const [towerDebuffTypes, setTowerDebuffTypes] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      const unsubscribe = useTowerBattleStore.subscribe((state) => {
+        setTowerDebuffTypes(state.towerDebuffTypes || []);
+      });
+      setTowerDebuffTypes(useTowerBattleStore.getState().towerDebuffTypes || []);
+      return unsubscribe;
+    } catch (e) {
+      return;
+    }
+  }, []);
+
+  const hasAmnesia = towerDebuffTypes.includes('amnesia');
+  const hasBlind = towerDebuffTypes.includes('blind');
   
   const getHpColor = () => {
     if (hpPercentage > 60) return 'bg-green-500';
@@ -135,21 +152,29 @@ const MainEnemyCard: React.FC<MainEnemyCardProps> = ({ enemy, isSelected, onSele
             <div className="flex justify-between text-sm mb-1">
               <span>生命值</span>
               <span className="font-bold">
-                {enemy.currentHp} / {enemy.maxHp}
-                {hpPercent <= berserkThreshold && (
-                  <span className="ml-2 text-red-500">⚠️ 狂暴触发</span>
+                {hasAmnesia ? (
+                  <span>??? / ???</span>
+                ) : (
+                  <>
+                    {enemy.currentHp} / {enemy.maxHp}
+                    {hpPercent <= berserkThreshold && (
+                      <span className="ml-2 text-red-500">⚠️ 狂暴触发</span>
+                    )}
+                  </>
                 )}
               </span>
             </div>
             <div className="health-bar relative">
               <div
                 className={`health-bar-fill ${getHpColor()} transition-all duration-500`}
-                style={{ width: `${hpPercentage}%` }}
+                style={{ width: hasAmnesia ? '100%' : `${hpPercentage}%`, opacity: hasAmnesia ? 0.3 : 1 }}
               />
-              <div
-                className="absolute top-0 left-0 h-full bg-red-500/30"
-                style={{ width: `${berserkThreshold * 100}%` }}
-              />
+              {!hasAmnesia && (
+                <div
+                  className="absolute top-0 left-0 h-full bg-red-500/30"
+                  style={{ width: `${berserkThreshold * 100}%` }}
+                />
+              )}
             </div>
           </div>
           
@@ -163,7 +188,11 @@ const MainEnemyCard: React.FC<MainEnemyCardProps> = ({ enemy, isSelected, onSele
             <div className="bg-game-bg-dark rounded-lg p-3">
               <div className="text-xs text-gray-400 mb-1">下次行动</div>
               <div className={`text-lg font-bold ${getBehaviorColor()}`}>
-                {ENEMY_BEHAVIOR_ICONS[currentBehavior]} {nextAttackPreview}
+                {hasBlind ? (
+                  <>??? ???</>
+                ) : (
+                  <>{ENEMY_BEHAVIOR_ICONS[currentBehavior]} {nextAttackPreview}</>
+                )}
               </div>
             </div>
           </div>
@@ -173,9 +202,13 @@ const MainEnemyCard: React.FC<MainEnemyCardProps> = ({ enemy, isSelected, onSele
               <div className="flex items-center gap-2 text-orange-400">
                 <span className="text-2xl animate-pulse">⚡</span>
                 <div>
-                  <div className="font-bold">正在蓄力: {chargeState.skillName}</div>
+                  <div className="font-bold">正在蓄力: {hasBlind ? '???' : chargeState.skillName}</div>
                   <div className="text-sm">
-                    还需 {chargeState.chargeTurnsRemaining} 回合 | 预计伤害: <span className="text-red-400 font-bold">{chargeState.chargedDamage}</span>
+                    还需 {hasBlind ? '???' : chargeState.chargeTurnsRemaining} 回合 | 预计伤害: {hasBlind ? (
+                      <span className="text-red-400 font-bold">???</span>
+                    ) : (
+                      <span className="text-red-400 font-bold">{chargeState.chargedDamage}</span>
+                    )}
                   </div>
                 </div>
               </div>
