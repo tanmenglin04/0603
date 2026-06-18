@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTowerStore } from '../store/useTowerStore';
 import { TOWER_TOTAL_FLOORS, TOWER_BLESSINGS, TOWER_DEBUFFS, TOWER_THEMES, QUALITY_COLORS, QUALITY_NAMES } from '../types';
-import type { TowerBlessing, TowerDebuffType, TowerNarrativeChoice, TowerBranchChoice } from '../types';
+import type { TowerBlessing, TowerDebuffType, TowerNarrativeChoice, TowerBranchChoice, TowerEnding } from '../types';
 import { Mountain, Castle, Tent, Trophy, Coins, Heart, Shield, Zap, X, Play, Home, BookOpen, Star, Trash2, Swords, Scroll, Sparkles } from 'lucide-react';
 
 const RARITY_BG: Record<string, string> = {
@@ -76,6 +76,8 @@ export const TowerPage: React.FC = () => {
     makeBranchChoice,
     makeNarrativeChoice,
     showCampNarrative,
+    currentEnding,
+    branchChoices,
   } = useTowerStore();
 
   const [shopBlessings, setShopBlessings] = useState<TowerBlessing[]>([]);
@@ -686,31 +688,70 @@ export const TowerPage: React.FC = () => {
   }
 
   if (battleStatus === 'victory') {
+    const ending: TowerEnding | null = currentEnding;
+    const endingColor = ending?.color || '#FFD700';
+    const endingIcon = ending?.icon || '🏆';
+    
     return (
       <div className="min-h-screen w-full overflow-auto p-8 flex items-center justify-center">
-        <div className="game-card p-8 text-center max-w-md">
-          <div className="text-6xl mb-4">🏆</div>
-          <h1 className="text-4xl font-bold text-game-gold mb-4 font-display">
-            恭喜通关！
+        <div className="game-card p-8 text-center max-w-2xl w-full" style={{ borderColor: endingColor + '60' }}>
+          <div className="text-7xl mb-4 animate-bounce">{endingIcon}</div>
+          <h1 
+            className="text-4xl font-bold mb-2 font-display" 
+            style={{ color: endingColor }}
+          >
+            {ending?.name || '恭喜通关！'}
           </h1>
-          <p className="text-gray-400 mb-6">
-            你成功征服了全部 {TOWER_TOTAL_FLOORS} 层大秘境！
+          <div className="text-sm text-gray-400 mb-4">结局 #{TOWER_ENDINGS.findIndex(e => e.type === ending?.type) + 1} / {TOWER_ENDINGS.length}</div>
+          <p className="text-gray-300 text-lg leading-relaxed mb-8 whitespace-pre-line">
+            {ending?.description || `你成功征服了全部 ${TOWER_TOTAL_FLOORS} 层大秘境，成为了传说中的英雄！`}
           </p>
-          <div className="bg-game-bg-dark rounded-lg p-4 mb-6">
-            <div className="grid grid-cols-2 gap-4 text-sm">
+          
+          {branchChoices.length > 0 && (
+            <div className="bg-game-bg-dark rounded-lg p-4 mb-6 border border-game-gold/20">
+              <div className="text-sm text-gray-400 mb-3">你的关键选择：</div>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {branchChoices.map((choice, i) => {
+                  const theme = TOWER_THEMES[Math.min(i, TOWER_THEMES.length - 1)];
+                  return (
+                    <div 
+                      key={i} 
+                      className="px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5"
+                      style={{ 
+                        backgroundColor: theme.color + '20', 
+                        color: theme.color,
+                        border: `1px solid ${theme.color}40`
+                      }}
+                    >
+                      <span>{theme.icon}</span>
+                      <span>{choice.replace(/_/g, ' ')}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          
+          <div className="bg-game-bg-dark rounded-lg p-6 mb-6 border border-game-gold/20">
+            <div className="grid grid-cols-3 gap-4 text-sm">
               <div>
-                <div className="text-2xl font-bold text-game-gold">{gold}</div>
+                <div className="text-3xl font-bold text-game-gold mb-1">{gold}</div>
                 <div className="text-gray-400">获得金币</div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-game-gold">{currentBlessings.length}</div>
+                <div className="text-3xl font-bold text-purple-400 mb-1">{currentBlessings.length}</div>
                 <div className="text-gray-400">收集祝福</div>
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-red-400 mb-1">{bossKills}</div>
+                <div className="text-gray-400">击杀BOSS</div>
               </div>
             </div>
           </div>
+          
           <button
             onClick={exitTower}
-            className="w-full game-button-primary"
+            className="w-full game-button-primary text-lg py-4"
           >
             返回大秘境
           </button>

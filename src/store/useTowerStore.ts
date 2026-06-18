@@ -89,6 +89,8 @@ interface BranchEffectState {
   energyGain: number;
   companion: string | null;
   debuffImmune: TowerDebuffType[];
+  shieldPerTurn: number;
+  startShield: number;
 }
 
 const DEFAULT_BRANCH_EFFECTS: BranchEffectState = {
@@ -100,6 +102,8 @@ const DEFAULT_BRANCH_EFFECTS: BranchEffectState = {
   energyGain: 0,
   companion: null,
   debuffImmune: [],
+  shieldPerTurn: 0,
+  startShield: 0,
 };
 
 const MAX_CONSECUTIVE_SAME_DEBUFF = 2;
@@ -353,15 +357,39 @@ const getMaxEnergyFromDebuffs = (debuffs: TowerDebuff[]): number => {
 };
 
 const determineEnding = (choices: TowerBranchChoiceType[]): TowerEnding | null => {
+  let bestMatch: { ending: TowerEnding; score: number } | null = null;
+  
   for (const ending of TOWER_ENDINGS) {
     const meetsRequired = ending.requiredChoices.every(c => choices.includes(c));
     const noForbidden = !ending.forbiddenChoices || !ending.forbiddenChoices.some(c => choices.includes(c));
     
-    if (meetsRequired && noForbidden) {
-      return ending;
+    if (!noForbidden) continue;
+    
+    if (ending.requiredChoices.length === 0) {
+      if (!bestMatch) {
+        bestMatch = { ending, score: 0 };
+      }
+      continue;
+    }
+    
+    if (meetsRequired) {
+      const score = ending.requiredChoices.length * 10 + 100;
+      if (!bestMatch || score > bestMatch.score) {
+        bestMatch = { ending, score };
+      }
+      continue;
+    }
+    
+    const partialMatches = ending.requiredChoices.filter(c => choices.includes(c)).length;
+    if (partialMatches > 0) {
+      const score = partialMatches * 5;
+      if (!bestMatch || score > bestMatch.score) {
+        bestMatch = { ending, score };
+      }
     }
   }
-  return null;
+  
+  return bestMatch ? bestMatch.ending : null;
 };
 
 interface ExtendedTowerState {
@@ -707,6 +735,8 @@ export const useTowerStore = create<TowerStore & ExtendedTowerState & ExtendedTo
     if (effect.difficultyMultiplier !== undefined) newEffects.difficultyMultiplier += effect.difficultyMultiplier;
     if (effect.energyGain !== undefined) newEffects.energyGain += effect.energyGain;
     if (effect.companion !== undefined) newEffects.companion = effect.companion;
+    if (effect.shieldPerTurn !== undefined) newEffects.shieldPerTurn += effect.shieldPerTurn;
+    if (effect.startShield !== undefined) newEffects.startShield += effect.startShield;
     if (effect.debuffImmune !== undefined) {
       newEffects.debuffImmune = [...newEffects.debuffImmune, ...effect.debuffImmune];
     }
