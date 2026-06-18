@@ -57,6 +57,9 @@ import {
 } from '../utils/enemyAI';
 import { getEquippedItems } from '../utils/localStorage';
 import { getEquipmentBonuses } from '../utils/runeEquipment';
+import { AudioPanel } from '../components/AudioPanel';
+import { useSceneAudio, useBattleHpAudio, useAudio } from '../audio/AudioContext';
+import { audioManager, type SpellType } from '../audio/AudioManager';
 
 interface TowerBattleState {
   energy: EnergyPoolType;
@@ -611,6 +614,8 @@ export const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
     const doubleEnergyInSelection = selectedRunes.filter(r => r.tileType === 'double_energy').length;
     const currentGridSize = get().gridSize;
 
+    audioManager.playRuneMatch(matchCount, comboCount + 1);
+
     if (matchCount >= 5 && towerBlessings.includes('extra_turn_big_match')) {
       set({ hasExtraTurn: true });
     }
@@ -661,6 +666,9 @@ export const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
         if (chainMatches.length > 0) {
           currentCombo++;
           totalCombo++;
+
+          audioManager.playComboChain(currentCombo);
+          audioManager.playRuneMatch(chainMatches.length, currentCombo);
 
           const chainDeBefore = saveDoubleEnergyCells(grid, currentGridSize);
           grid = processFrozenHits(grid, chainMatches, currentGridSize);
@@ -733,6 +741,26 @@ export const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
     if (!target) return;
 
     set({ isAnimating: true, spellEffect: spell.element });
+
+    const currentCombo = get().comboCount;
+    let spellType: SpellType = 'fireball';
+    switch (spell.id) {
+      case 'fireball':
+        spellType = 'fireball';
+        break;
+      case 'thunder-strike':
+        spellType = 'thunder_strike';
+        break;
+      case 'water-heal':
+        spellType = 'heal';
+        break;
+      case 'vine-whip':
+        spellType = 'vine_whip';
+        break;
+      default:
+        spellType = 'fireball';
+    }
+    audioManager.playSpell(spellType, currentCombo + 1);
 
     const newEnergy = { ...energy };
     newEnergy[spell.element] -= adjustedCost;
@@ -865,6 +893,7 @@ export const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
         if (isEffective) damageText += ' 效果拔群！';
         if (isWeak) damageText += ' 效果不佳...';
         get().addFloatingText(damageText, 400, 150, spell.element);
+        audioManager.playEnemyHit(finalDamage, isEffective || finalDamage >= 30);
       }
       if (spell.heal > 0) {
         get().addFloatingText(`+${healAmount}`, 200, 400, 'grass');
@@ -916,6 +945,9 @@ export const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
     if (!target) return;
 
     set({ isAnimating: true, spellEffect: spell.elements });
+
+    const currentCombo = get().comboCount;
+    audioManager.playSpell('combo', currentCombo + 1);
 
     const adjustedCost = getAdjustedComboCost(spell, excludedElements);
     const newEnergy = { ...energy };
@@ -1032,6 +1064,7 @@ export const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
         if (isEffective) damageText += ' 效果拔群！';
         if (isWeak) damageText += ' 效果不佳...';
         get().addFloatingText(damageText, 400, 150, spell.elements);
+        audioManager.playEnemyHit(finalDamage, isEffective || finalDamage >= 30);
       }
 
       get().addFloatingText(`附加${spell.effect === 'burn' ? '灼烧' : spell.effect === 'paralyze' ? '麻痹' : '抗性降低'}!`, 400, 190, spell.elements);
@@ -1239,6 +1272,7 @@ export const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
       get().setScreenShake(true);
       setTimeout(() => get().setScreenShake(false), 300);
       get().addFloatingText(`小怪伤害 -${actualMinionDamage}`, 200, 380, 'purple');
+      audioManager.playPlayerHit(actualMinionDamage);
     }
 
     explosions.forEach(explosion => {
@@ -1320,6 +1354,7 @@ export const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
       playerHp = Math.max(0, playerHp - shieldedDamage);
       get().setScreenShake(true);
       setTimeout(() => get().setScreenShake(false), 300);
+      audioManager.playPlayerHit(shieldedDamage);
 
       let damageText = `-${shieldedDamage}`;
       if (updatedEnemy.behaviorState.isBerserk) {
@@ -1465,6 +1500,18 @@ export const TowerBattlePage: React.FC = () => {
     getPlayerHp,
     setPlayerHp,
   } = store;
+  const { playUIButton, resumeAudio, transitionToScene } = useAudio();
+
+  useSceneAudio(battleStatus === 'victory' ? 'victory' : battleStatus === 'defeat' ? 'defeat' : 'battle_loop', [battleStatus]);
+  useBattleHpAudio(getPlayerHp(), store.playerMaxHpRef.current);
+
+  useEffect(() => {
+    if (battleStatus === 'victory') {
+      transitionToScene('victory');
+    } else if (battleStatus === 'defeat') {
+      transitionToScene('defeat');
+    }
+  }, [battleStatus, transitionToScene]);
 
   const battleStore = useMemo(() => ({
     energy: store.energy,
@@ -1541,6 +1588,7 @@ export const TowerBattlePage: React.FC = () => {
   }, [battleStatus, getPlayerHp, playerHp, playerShield, addShield]);
 
   const handleVictory = () => {
+    playUIButton();
     const finalHp = getPlayerHp();
     if (hasBlessing('life_steal')) {
       const healAmount = Math.floor(playerMaxHp * 0.1);
@@ -1551,6 +1599,7 @@ export const TowerBattlePage: React.FC = () => {
   };
 
   const handleRetry = () => {
+    playUIButton();
     handleDefeat();
     navigate('/tower');
   };
@@ -1567,7 +1616,10 @@ export const TowerBattlePage: React.FC = () => {
     <BattleProvider store={battleStore}>
       <div className={`min-h-screen w-full p-4 md:p-6 ${screenShake ? 'shake' : ''}`}>
         <div className="max-w-7xl mx-auto">
-          <TowerTurnInfo />
+          <div className="flex items-center justify-between">
+            <TowerTurnInfo />
+            <AudioPanel />
+          </div>
           
           <div className="mt-6 grid lg:grid-cols-3 gap-6">
             <div className="space-y-6">

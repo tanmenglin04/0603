@@ -3,6 +3,7 @@ import { useGameStore } from '../store/useGameStore';
 import { useEquipmentStore } from '../store/useEquipmentStore';
 import { useNavigate } from 'react-router-dom';
 import { RotateCcw, ArrowRight, Home, Coins, Play, Download, Share2, Star } from 'lucide-react';
+import { useAudio } from '../audio/AudioContext';
 import levelsData from '../data/levels.json';
 import type { Level, RuneEquipment, ShareCardData, HighlightType } from '../types';
 import { LEVEL_GOLD_REWARD, QUALITY_NAMES, QUALITY_COLORS, ELEMENT_ICONS, ELEMENT_NAMES, HIGHLIGHT_TYPE_META } from '../types';
@@ -23,6 +24,7 @@ export const BattleResult: React.FC = () => {
   const { battleStatus, currentLevelId, playerHp, resetBattle, returnToMenu, highestLevel, lastReplayData, lastReplayShareCards, saveCurrentReplay } = useGameStore();
   const { addReward, syncFromLS } = useEquipmentStore();
   const navigate = useNavigate();
+  const { playUIButton, playUIClick, playUIPositive, playUINegative, resumeAudio, transitionToScene } = useAudio();
 
   const [rewards, setRewards] = useState<{ gold: number; equipment: RuneEquipment[] } | null>(null);
   const [selectedCard, setSelectedCard] = useState<ShareCardData | null>(null);
@@ -59,12 +61,14 @@ export const BattleResult: React.FC = () => {
   const hasShareCards = lastReplayShareCards && lastReplayShareCards.length > 0;
 
   const handleRetry = () => {
+    playUIButton();
     setRewards(null);
     resetBattle();
   };
 
   const handleNextLevel = () => {
     if (nextLevel) {
+      playUIPositive();
       setRewards(null);
       returnToMenu();
       navigate(`/battle/${nextLevel.id}`);
@@ -72,22 +76,30 @@ export const BattleResult: React.FC = () => {
   };
 
   const handleReturnToMenu = () => {
+    playUIButton();
     setRewards(null);
     returnToMenu();
     navigate('/');
   };
 
   const handleViewReplay = () => {
+    playUIClick();
     navigate('/replay', { state: { fromGameStore: true } });
   };
 
   const handleSaveReplay = () => {
     const ok = saveCurrentReplay();
+    if (ok) {
+      playUIPositive();
+    } else {
+      playUINegative();
+    }
     setReplaySaved(ok);
     setTimeout(() => setReplaySaved(false), 3000);
   };
 
   const handleViewCard = (card: ShareCardData) => {
+    playUIClick();
     setSelectedCard(card);
     setShowCardModal(true);
   };

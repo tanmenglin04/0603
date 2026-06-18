@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Lock, Play, Star } from 'lucide-react';
 import type { Level } from '../types';
 import { getCurrentBattle, getLevelStars } from '../utils/localStorage';
+import { useAudio } from '../audio/AudioContext';
 
 interface LevelCardProps {
   level: Level;
@@ -12,13 +13,18 @@ interface LevelCardProps {
 
 export const LevelCard: React.FC<LevelCardProps> = ({ level, isUnlocked, highestLevel }) => {
   const navigate = useNavigate();
+  const { playUIButton, playUINegative, resumeAudio } = useAudio();
   const hasSavedProgress = getCurrentBattle()?.levelId === level.id;
   const isCompleted = highestLevel >= level.id;
   const earnedStars = getLevelStars(level.id);
 
-  const handleClick = () => {
+  const handleClick = async () => {
+    await resumeAudio();
     if (isUnlocked) {
+      playUIButton();
       navigate(`/battle/${level.id}`);
+    } else {
+      playUINegative();
     }
   };
 

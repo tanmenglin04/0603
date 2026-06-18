@@ -51,6 +51,7 @@ import { useAchievementStore } from './useAchievementStore';
 import { BattleRecorder } from '../utils/battleRecorder';
 import { saveReplay, loadReplay } from '../utils/replayStorage';
 import { detectHighlights, generateAllShareCards } from '../utils/highlightDetector';
+import { audioManager, type SpellType } from '../audio/AudioManager';
 
 const levels: Level[] = levelsData as Level[];
 
@@ -429,6 +430,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const doubleEnergyInSelection = selectedRunes.filter(r => r.tileType === 'double_energy').length;
     const currentGridSize = get().gridSize;
 
+    audioManager.playRuneMatch(matchCount, comboCount + 1);
+
     try {
       useAchievementStore.getState().recordRunesEliminated(element, matchCount);
     } catch { /* achievement tracking is non-critical */ }
@@ -521,6 +524,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (chainMatches.length > 0) {
           currentCombo++;
           totalCombo++;
+
+          audioManager.playComboChain(currentCombo);
+          audioManager.playRuneMatch(chainMatches.length, currentCombo);
 
           const chainPathCoords = chainMatches.map(r => ({ row: r.row, col: r.col, element: r.element }));
           allChainPaths.push(chainPathCoords);
@@ -640,6 +646,26 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     set({ isAnimating: true, spellEffect: spell.element });
 
+    const currentCombo = get().comboCount;
+    let spellType: SpellType = 'fireball';
+    switch (spell.id) {
+      case 'fireball':
+        spellType = 'fireball';
+        break;
+      case 'thunder-strike':
+        spellType = 'thunder_strike';
+        break;
+      case 'water-heal':
+        spellType = 'heal';
+        break;
+      case 'vine-whip':
+        spellType = 'vine_whip';
+        break;
+      default:
+        spellType = 'fireball';
+    }
+    audioManager.playSpell(spellType, currentCombo + 1);
+
     const newEnergy = { ...energy };
     newEnergy[spell.element] -= spell.cost;
 
@@ -701,6 +727,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (isEffective) damageText += ' 效果拔群！';
         if (isWeak) damageText += ' 效果不佳...';
         get().addFloatingText(damageText, 400, 150, spell.element);
+        audioManager.playEnemyHit(finalDamage, isEffective || finalDamage >= 30);
       }
       if (spell.heal > 0) {
         get().addFloatingText(`+${spell.heal}`, 200, 400, 'grass');
@@ -763,6 +790,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     } catch { /* non-critical */ }
 
     set({ isAnimating: true, spellEffect: spell.elements });
+
+    const currentCombo = get().comboCount;
+    audioManager.playSpell('combo', currentCombo + 1);
 
     const newEnergy = { ...energy };
     Object.entries(spell.cost).forEach(([element, cost]) => {
@@ -834,6 +864,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (isEffective) damageText += ' 效果拔群！';
         if (isWeak) damageText += ' 效果不佳...';
         get().addFloatingText(damageText, 400, 150, spell.elements);
+        audioManager.playEnemyHit(finalDamage, isEffective || finalDamage >= 30);
       }
 
       get().addFloatingText(`附加${spell.effect === 'burn' ? '灼烧' : spell.effect === 'paralyze' ? '麻痹' : '抗性降低'}!`, 400, 190, spell.elements);
@@ -1040,6 +1071,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       get().setScreenShake(true);
       setTimeout(() => get().setScreenShake(false), 300);
       get().addFloatingText(`小怪伤害 -${minionDamage}`, 200, 380, 'purple');
+      audioManager.playPlayerHit(minionDamage);
       if (battleRecorder) {
         battleRecorder.setPlayerHp(currentPlayerHp, 'minion');
       }
@@ -1104,6 +1136,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       currentPlayerHp = Math.max(0, currentPlayerHp - damageToPlayer);
       get().setScreenShake(true);
       setTimeout(() => get().setScreenShake(false), 300);
+      audioManager.playPlayerHit(damageToPlayer);
 
       let damageText = `-${damageToPlayer}`;
       if (updatedEnemy.behaviorState.isBerserk) {

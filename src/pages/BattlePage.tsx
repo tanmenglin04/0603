@@ -11,12 +11,18 @@ import { TurnInfo } from '../components/TurnInfo';
 import { BattleResult } from '../components/BattleResult';
 import { FloatingTexts } from '../components/FloatingTexts';
 import { SpellEffect } from '../components/SpellEffect';
+import { AudioPanel } from '../components/AudioPanel';
 import { requestNotificationPermission } from '../utils/notifications';
+import { useSceneAudio, useBattleHpAudio, useAudio } from '../audio/AudioContext';
 
 export const BattlePage: React.FC = () => {
   const { levelId } = useParams<{ levelId: string }>();
   const store = useGameStore();
-  const { initLevel, battleStatus, screenShake } = store;
+  const { initLevel, battleStatus, screenShake, playerHp, playerMaxHp, comboCount } = store;
+  const { transitionToScene, playUIButton, resumeAudio } = useAudio();
+
+  useSceneAudio(battleStatus === 'victory' ? 'victory' : battleStatus === 'defeat' ? 'defeat' : 'battle_loop', [battleStatus]);
+  useBattleHpAudio(playerHp, playerMaxHp);
 
   const battleStore = useMemo(() => ({
     energy: store.energy,
@@ -45,7 +51,16 @@ export const BattlePage: React.FC = () => {
       initLevel(parseInt(levelId, 10));
     }
     requestNotificationPermission();
-  }, [levelId, initLevel]);
+    resumeAudio();
+  }, [levelId, initLevel, resumeAudio]);
+
+  useEffect(() => {
+    if (battleStatus === 'victory') {
+      transitionToScene('victory');
+    } else if (battleStatus === 'defeat') {
+      transitionToScene('defeat');
+    }
+  }, [battleStatus, transitionToScene]);
 
   if (battleStatus === 'idle') {
     return (
@@ -59,7 +74,10 @@ export const BattlePage: React.FC = () => {
     <BattleProvider store={battleStore}>
       <div className={`min-h-screen w-full p-4 md:p-6 ${screenShake ? 'shake' : ''}`}>
         <div className="max-w-7xl mx-auto">
-          <TurnInfo />
+          <div className="flex items-center justify-between">
+            <TurnInfo />
+            <AudioPanel />
+          </div>
           
           <div className="mt-6 grid lg:grid-cols-3 gap-6">
             <div className="space-y-6">

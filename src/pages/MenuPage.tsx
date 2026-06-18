@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useGameStore } from '../store/useGameStore';
 import { useEquipmentStore } from '../store/useEquipmentStore';
 import { LevelCard } from '../components/LevelCard';
+import { AudioPanel } from '../components/AudioPanel';
 import levelsData from '../data/levels.json';
 import type { Level } from '../types';
 import { requestNotificationPermission } from '../utils/notifications';
+import { useSceneAudio, useAudio } from '../audio/AudioContext';
 import { Sparkles, BookOpen, Gem, Coins, Mountain, Trophy, Wrench } from 'lucide-react';
 
 const levels: Level[] = levelsData as Level[];
@@ -14,12 +16,20 @@ export const MenuPage: React.FC = () => {
   const { unlockedLevels, highestLevel, loadProgress } = useGameStore();
   const { gold, load: loadEquipment } = useEquipmentStore();
   const navigate = useNavigate();
+  const { playUIButton } = useAudio();
+
+  useSceneAudio('menu');
 
   useEffect(() => {
     loadProgress();
     loadEquipment();
     requestNotificationPermission();
   }, [loadProgress, loadEquipment]);
+
+  const handleNavigate = (path: string) => {
+    playUIButton();
+    navigate(path);
+  };
 
   return (
     <div className="min-h-screen w-full overflow-auto p-8">
@@ -78,33 +88,34 @@ export const MenuPage: React.FC = () => {
               选择关卡
             </h2>
             <div className="flex items-center gap-4">
+              <AudioPanel />
               <div className="flex items-center gap-1.5 bg-game-card px-4 py-2 rounded-lg">
                 <Coins size={18} className="text-game-gold" />
                 <span className="text-game-gold font-bold">{gold}</span>
               </div>
               <button
-                onClick={() => navigate('/workshop')}
+                onClick={() => handleNavigate('/workshop')}
                 className="game-button-secondary flex items-center gap-2 px-4 py-2 bg-cyan-500/20 border-cyan-500/50 hover:bg-cyan-500/30"
               >
                 <Wrench size={18} />
                 <span>创意工坊</span>
               </button>
               <button
-                onClick={() => navigate('/tower')}
+                onClick={() => handleNavigate('/tower')}
                 className="game-button-secondary flex items-center gap-2 px-4 py-2 bg-purple-500/20 border-purple-500/50 hover:bg-purple-500/30"
               >
                 <Mountain size={18} />
                 <span>大秘境</span>
               </button>
               <button
-                onClick={() => navigate('/achievements')}
+                onClick={() => handleNavigate('/achievements')}
                 className="game-button-secondary flex items-center gap-2 px-4 py-2 bg-amber-500/20 border-amber-500/50 hover:bg-amber-500/30"
               >
                 <Trophy size={18} />
                 <span>成就</span>
               </button>
               <button
-                onClick={() => navigate('/equipment')}
+                onClick={() => handleNavigate('/equipment')}
                 className="game-button-primary flex items-center gap-2 px-4 py-2"
               >
                 <Gem size={18} />
