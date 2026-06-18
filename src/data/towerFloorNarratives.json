@@ -1,0 +1,1304 @@
+[
+  {
+    "theme": "dungeon",
+    "floorInTheme": 1,
+    "enterEvent": {
+      "id": "dungeon_f1_enter",
+      "type": "enter_floor",
+      "title": "古老监狱的入口",
+      "text": "你推开沉重的铁门，一股腐朽的气息扑面而来。这座古老的地牢已经沉睡了数百年，墙壁上的铁链锈迹斑斑，远处传来微弱的呻吟声。石阶向下延伸，消失在无尽的黑暗之中。你点亮火把，迈入了这片被遗忘之地。",
+      "autoTrigger": true,
+      "icon": "🚪"
+    }
+  },
+  {
+    "theme": "dungeon",
+    "floorInTheme": 2,
+    "enterEvent": {
+      "id": "dungeon_f2_enter",
+      "type": "trap_triggered",
+      "title": "锈蚀的陷阱",
+      "text": "你踩到了一块松动的石板，一排锈箭从墙壁射出！虽然年代久远，但这些陷阱依然致命。你勉强躲过了大部分，但仍有擦伤。",
+      "autoTrigger": true,
+      "icon": "⚠️"
+    },
+    "campEvents": [
+      {
+        "id": "dungeon_f2_camp",
+        "theme": "dungeon",
+        "campIndex": 0,
+        "title": "休息处的刻痕",
+        "text": "你在牢房中找到了一处相对干燥的角落。墙壁上满是犯人留下的刻痕——有的在数日子，有的在画窗外的风景，还有的写满了悔恨。这些痕迹无声地诉说着曾经发生在这里的悲剧。",
+        "npcName": "无名刻痕",
+        "npcSprite": "🪨",
+        "choices": [
+          {
+            "id": "dungeon_f2_read",
+            "text": "仔细阅读刻痕",
+            "resultText": "你从刻痕中找到了关于前方陷阱的线索，这让你更加警觉。",
+            "icon": "📖",
+            "effect": { "playerShield": 5 }
+          },
+          {
+            "id": "dungeon_f2_ignore",
+            "text": "不去在意，专心休息",
+            "resultText": "你选择保存体力，好好休息了一会。",
+            "icon": "💤",
+            "effect": { "playerMaxHp": 10 }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "theme": "dungeon",
+    "floorInTheme": 3,
+    "enterEvent": {
+      "id": "dungeon_f3_enter",
+      "type": "treasure_found",
+      "title": "囚徒的日记",
+      "text": "在一间崩塌的牢房中，你发现了一本泛黄的日记。封面上写着：'如果你正在读这些文字，那么你已踏入了被诅咒之地——请务必找到典狱长的密室，那里藏着终结这一切的钥匙。'",
+      "autoTrigger": true,
+      "icon": "📕"
+    },
+    "campEvents": [
+      {
+        "id": "dungeon_f3_camp",
+        "theme": "dungeon",
+        "campIndex": 0,
+        "title": "老囚犯的忠告",
+        "text": "在阴暗的角落里，一个佝偻的老人靠墙坐着。他的眼窝深陷，但目光依然锐利。'又一个闯入者……'他嘶哑地说，'这片地牢吞噬了无数灵魂。不过，我也许能帮你。'",
+        "npcName": "老囚犯",
+        "npcSprite": "👴",
+        "choices": [
+          {
+            "id": "dungeon_f3_ask_secret",
+            "text": "询问地牢的秘密",
+            "resultText": "老囚犯低声告诉你典狱长的弱点——每当午夜钟声响起，他的力量会短暂削弱。'记住，光与暗的交界处，是他最脆弱的时候。'你感到一股神秘的力量加持。",
+            "icon": "🔮",
+            "effect": { "critChance": 0.1, "damageMultiplier": 1.1 }
+          },
+          {
+            "id": "dungeon_f3_ask_supplies",
+            "text": "请求物资援助",
+            "resultText": "老囚犯从破烂的衣袍中掏出一个布包。'这是我多年攒下的……拿去吧，比我更需要它的是你。'布包里有一些药草和一块护身符。",
+            "icon": "🎒",
+            "effect": { "playerMaxHp": 25, "playerShield": 10 }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "theme": "dungeon",
+    "floorInTheme": 4,
+    "enterEvent": {
+      "id": "dungeon_f4_enter",
+      "type": "mysterious_event",
+      "title": "回荡的低语",
+      "text": "走廊深处传来低沉的低语声，像无数灵魂在同时呢喃。你感到脊背发凉，但低语中似乎隐藏着某种规律——也许是指引，也许是警告。墙壁上的符文开始微微发光。",
+      "autoTrigger": true,
+      "icon": "👻"
+    }
+  },
+  {
+    "theme": "dungeon",
+    "floorInTheme": 5,
+    "enterEvent": {
+      "id": "dungeon_f5_enter",
+      "type": "elite_encounter",
+      "title": "被困的灵魂",
+      "text": "你来到一间巨大的囚室，铁链从天花板垂下，锁着一个半透明的灵魂。它睁开了空洞的双眼：'自由……给我自由……我愿意付出任何代价。'它的痛苦扭曲了周围的空间，黑暗力量不断涌出。",
+      "autoTrigger": true,
+      "icon": "⛓️"
+    },
+    "campEvents": [
+      {
+        "id": "dungeon_f5_camp",
+        "theme": "dungeon",
+        "campIndex": 0,
+        "title": "灵魂的抉择",
+        "text": "被困的灵魂向你伸出手：'请选择——释放我，我将赐予你守护之力；或吸收我，你将获得更强大的力量，但我的痛苦将成为你的一部分。'",
+        "npcName": "被困灵魂",
+        "npcSprite": "👻",
+        "choices": [
+          {
+            "id": "dungeon_f5_free_soul",
+            "text": "释放灵魂",
+            "resultText": "你斩断了束缚它的铁链。灵魂化作温暖的光芒，在你身上留下祝福：'感谢你的慈悲。愿此光芒在黑暗中守护你。'你感到一股暖流遍布全身。",
+            "icon": "✨",
+            "effect": { "regenPerTurn": 3, "playerMaxHp": 15, "blessingType": "holy_shield" }
+          },
+          {
+            "id": "dungeon_f5_absorb_soul",
+            "text": "吸收灵魂的力量",
+            "resultText": "你将灵魂的黑暗力量吸纳进体内。它发出最后的哀嚎后消散，而你的力量急剧增长，但隐隐的头痛提醒你这力量的代价。",
+            "icon": "🌑",
+            "effect": { "damageMultiplier": 1.3, "critChance": 0.15, "playerMaxHp": -10 }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "theme": "dungeon",
+    "floorInTheme": 6,
+    "enterEvent": {
+      "id": "dungeon_f6_enter",
+      "type": "enter_floor",
+      "title": "典狱长的领地",
+      "text": "走廊变得宽敞了，墙壁上挂满了刑具和锁链。火把的火焰变成了幽蓝色，空气中弥漫着恐惧的味道。你已经踏入了典狱长的领地——那些刻痕日记中提到的'被诅咒之地'的核心。",
+      "autoTrigger": true,
+      "icon": "🔥"
+    }
+  },
+  {
+    "theme": "dungeon",
+    "floorInTheme": 7,
+    "enterEvent": {
+      "id": "dungeon_f7_enter",
+      "type": "before_battle",
+      "title": "典狱长的秘密",
+      "text": "你发现了一间隐藏的密室，墙壁上挂满了画像——每一幅都是典狱长，但面容从人类逐渐变成了某种扭曲的存在。桌上放着一份档案：典狱长曾是一名圣骑士，为了永生而与黑暗签订了契约。他现在已是黑暗力量的傀儡。",
+      "autoTrigger": true,
+      "icon": "📋"
+    },
+    "campEvents": [
+      {
+        "id": "dungeon_f7_camp",
+        "theme": "dungeon",
+        "campIndex": 0,
+        "title": "决战前的准备",
+        "text": "老囚犯再次出现，这次他的表情异常凝重。'你终于走到了这里。典狱长不是普通的敌人——他曾是圣骑士，拥有强大的战斗技巧，又获得了黑暗的力量。你必须做好万全的准备。'",
+        "npcName": "老囚犯",
+        "npcSprite": "👴",
+        "choices": [
+          {
+            "id": "dungeon_f7_holy_prep",
+            "text": "准备圣光护符",
+            "resultText": "老囚犯递给你一枚闪着微光的护符。'这是我入狱前最后的圣物。用它来对抗典狱长的黑暗之力吧。'护符散发着温暖的光芒，你感到对黑暗的抵抗力增强了。",
+            "icon": "📿",
+            "effect": { "blessingType": "holy_ward", "debuffImmune": ["curse", "fear", "darkness"], "playerShield": 15 }
+          },
+          {
+            "id": "dungeon_f7_power_prep",
+            "text": "强化战斗能力",
+            "resultText": "老囚犯为你调配了一种药水。'这是用典狱长密室中的草药制成的。它会增强你的攻击力，但也会让你更加鲁莽。'你一饮而尽，感受到力量在血管中奔涌。",
+            "icon": "⚔️",
+            "effect": { "damageMultiplier": 1.25, "critChance": 0.2, "difficultyMultiplier": 1.15 }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "theme": "dungeon",
+    "floorInTheme": 8,
+    "enterEvent": {
+      "id": "dungeon_f8_enter",
+      "type": "elite_encounter",
+      "title": "典狱长的亲卫",
+      "text": "两个身穿黑甲的守卫挡在了通道前方。他们的眼中没有瞳孔——早已被黑暗吞噬。手中的巨剑燃烧着幽蓝的火焰，他们是典狱长最忠实的猎犬。你必须击败他们才能继续前进！",
+      "autoTrigger": true,
+      "icon": "🛡️"
+    }
+  },
+  {
+    "theme": "dungeon",
+    "floorInTheme": 9,
+    "enterEvent": {
+      "id": "dungeon_f9_enter",
+      "type": "camp_story",
+      "title": "最后的营地",
+      "text": "在通向最底层的阶梯前，你找到了最后一块可以休息的地方。老囚犯坐在那里，等着你。'我走不动了，但我的灵魂将与你同在。去吧，终结这一切。'他的身体渐渐透明，最终化为一缕温暖的光，融入了你的身体。",
+      "autoTrigger": true,
+      "icon": "🏕️"
+    },
+    "campEvents": [
+      {
+        "id": "dungeon_f9_camp",
+        "theme": "dungeon",
+        "campIndex": 0,
+        "title": "老囚犯的遗赠",
+        "text": "老囚犯已经离去，但他在地上留下了一本完整的日记和一枚闪光的戒指。日记的最后一页写着：'愿后来者不再受此诅咒。'",
+        "npcName": "遗物",
+        "npcSprite": "💍",
+        "choices": [
+          {
+            "id": "dungeon_f9_take_ring",
+            "text": "戴上戒指",
+            "resultText": "戒指温暖地贴合在你的手指上，你感到老囚犯的意志与你同在。'我不会让你独自面对。'一个声音在你心中响起。",
+            "icon": "💍",
+            "effect": { "companion": "old_prisoner_spirit", "regenPerTurn": 2, "playerMaxHp": 20 }
+          },
+          {
+            "id": "dungeon_f9_read_diary",
+            "text": "研读完整日记",
+            "resultText": "日记中详细记载了典狱长所有的战斗方式与弱点。你将每一页都牢牢记在心中，信心倍增。",
+            "icon": "📕",
+            "effect": { "critChance": 0.2, "damageMultiplier": 1.15 }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "theme": "dungeon",
+    "floorInTheme": 10,
+    "enterEvent": {
+      "id": "dungeon_f10_enter",
+      "type": "before_battle",
+      "title": "典狱长的王座",
+      "text": "你推开了最后的巨门。大厅中央，一个身穿残破铠甲的身影坐在骨制王座上。他缓缓抬头，双眼燃烧着深紫色的火焰：'又一个试图挑战秩序的蠢货……你可知道，这座地牢就是我的身体，这些锁链就是我的意志！'他站起身，黑暗如潮水般涌来。",
+      "autoTrigger": true,
+      "icon": "👑"
+    },
+    "victoryEvent": {
+      "id": "dungeon_f10_victory",
+      "type": "after_victory",
+      "title": "诅咒终结",
+      "text": "典狱长的身体开始碎裂，黑暗的铠甲化为尘埃。他最后的人性在眼中一闪而过：'谢谢你……让我终于……可以安息……'随着他的消亡，整座地牢开始震动，被囚禁千年的灵魂纷纷升空，化为光点消散。古老的诅咒终于被打破了。",
+      "icon": "🌟"
+    }
+  },
+  {
+    "theme": "jungle",
+    "floorInTheme": 1,
+    "enterEvent": {
+      "id": "jungle_f1_enter",
+      "type": "enter_floor",
+      "title": "活着的森林",
+      "text": "你踏入了一片遮天蔽日的丛林。树叶似乎在注视着你，藤蔓像触手般缓缓蠕动。空气潮湿而芬芳，却隐隐透着危险。远处的树冠中传来鸟鸣，但那声音太过规律，像是某种信号。这片丛林是活的——它在审视每一个闯入者。",
+      "autoTrigger": true,
+      "icon": "🌿"
+    }
+  },
+  {
+    "theme": "jungle",
+    "floorInTheme": 2,
+    "enterEvent": {
+      "id": "jungle_f2_enter",
+      "type": "trap_triggered",
+      "title": "缠绕的藤蔓",
+      "text": "脚下的地面突然塌陷，你跌入了一片藤蔓陷阱中！带刺的藤蔓试图缠住你的四肢，你挣扎着拔出武器切割它们。藤蔓流出绿色的汁液，发出类似尖叫的声音。",
+      "autoTrigger": true,
+      "icon": "🌺"
+    },
+    "campEvents": [
+      {
+        "id": "jungle_f2_camp",
+        "theme": "jungle",
+        "campIndex": 0,
+        "title": "溪边的篝火",
+        "text": "你找到了一条清澈的小溪，终于可以安全地休息。溪水映着天空中透过树冠的光斑，周围的荧光虫翩翩起舞，美得不真实。",
+        "choices": [
+          {
+            "id": "jungle_f2_drink",
+            "text": "饮用溪水",
+            "resultText": "溪水甘甜清凉，你感到疲惫消退，伤势也有所好转。这水似乎有某种魔力。",
+            "icon": "💧",
+            "effect": { "playerMaxHp": 15, "regenPerTurn": 1 }
+          },
+          {
+            "id": "jungle_f2_wash",
+            "text": "清洗装备",
+            "resultText": "你仔细清洁了武器和护甲，使它们焕然一新。锋利的武器让你更有信心面对接下来的挑战。",
+            "icon": "🛡️",
+            "effect": { "playerShield": 8, "damageMultiplier": 1.05 }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "theme": "jungle",
+    "floorInTheme": 3,
+    "enterEvent": {
+      "id": "jungle_f3_enter",
+      "type": "mysterious_event",
+      "title": "部落的神龛",
+      "text": "你发现了一座被藤蔓覆盖的石制神龛。上面雕刻着蛇与花朵交织的图腾，中央嵌着一颗翠绿的宝石，散发着柔和的光芒。这是丛林原住民留下的圣地——它似乎在等待你的到来。",
+      "autoTrigger": true,
+      "icon": "🏛️"
+    },
+    "campEvents": [
+      {
+        "id": "jungle_f3_camp",
+        "theme": "jungle",
+        "campIndex": 0,
+        "title": "丛林德鲁伊的警告",
+        "text": "一个身披树叶的神秘人物从树冠中降下。他的皮肤如同树皮，眼中闪烁着绿色的光芒。'外来者，丛林已感受到了你的存在。它不会善待入侵者——除非你证明自己的价值。'",
+        "npcName": "丛林德鲁伊",
+        "npcSprite": "🧙",
+        "choices": [
+          {
+            "id": "jungle_f3_offer_respect",
+            "text": "向丛林献上敬意",
+            "resultText": "你跪在神龛前，低头致敬。神龛上的宝石闪耀了一下，德鲁伊微微点头。'丛林接受了你的敬意。它将在危险时庇护你。'你感到大自然的力量在守护着你。",
+            "icon": "🌿",
+            "effect": { "blessingType": "nature_ward", "regenPerTurn": 2, "debuffImmune": ["poison"] }
+          },
+          {
+            "id": "jungle_f3_challenge",
+            "text": "要求丛林认可你的力量",
+            "resultText": "你挺直身躯，直视德鲁伊的双眼。他露出一个危险的微笑：'很好，丛林崇尚强者。但记住——力量越大，试炼越严。'你感到体内涌动着野性的力量，但同时也感受到了丛林注视的沉重。",
+            "icon": "💪",
+            "effect": { "damageMultiplier": 1.2, "critChance": 0.1, "difficultyMultiplier": 1.1 }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "theme": "jungle",
+    "floorInTheme": 4,
+    "enterEvent": {
+      "id": "jungle_f4_enter",
+      "type": "enter_floor",
+      "title": "毒雾沼泽",
+      "text": "丛林变得愈发浓密，地面变成了泥泞的沼泽。空气中弥漫着甜腻的毒雾，各种奇异的菌类在树根上发光。远处，巨大的花朵张开了血盆大口，等待着猎物。",
+      "autoTrigger": true,
+      "icon": "🍄"
+    }
+  },
+  {
+    "theme": "jungle",
+    "floorInTheme": 5,
+    "enterEvent": {
+      "id": "jungle_f5_enter",
+      "type": "elite_encounter",
+      "title": "丛林的试炼",
+      "text": "树木突然合拢，形成了一座天然的竞技场。丛林德鲁伊出现在高处的树枝上：'试炼开始了！证明你有资格踏入丛林深处！'地面裂开，巨大的藤蔓怪从地底涌出，它的身上开满了食人花。",
+      "autoTrigger": true,
+      "icon": "🌺"
+    },
+    "campEvents": [
+      {
+        "id": "jungle_f5_camp",
+        "theme": "jungle",
+        "campIndex": 0,
+        "title": "试炼之后的恩赐",
+        "text": "藤蔓怪倒下了，丛林陷入短暂的宁静。德鲁伊从树上飘落：'你通过了第一道试炼。现在，选择你的奖赏——丛林的记忆，还是丛林的力量？'",
+        "npcName": "丛林德鲁伊",
+        "npcSprite": "🧙",
+        "choices": [
+          {
+            "id": "jungle_f5_memory",
+            "text": "接受丛林的记忆",
+            "resultText": "德鲁伊将手掌按在你的额头上。无数画面涌入——丛林的千年历史、每一条隐秘小径、每一处水源和陷阱。你获得了丛林之眼，能感知到周围的危险。",
+            "icon": "👁️",
+            "effect": { "blessingType": "jungle_eye", "critChance": 0.15, "debuffImmune": ["poison", "blind"], "playerShield": 10 }
+          },
+          {
+            "id": "jungle_f5_power",
+            "text": "接受丛林的力量",
+            "resultText": "德鲁伊将一颗发光的果实递给你。你咬下去的瞬间，野性的力量充斥全身。你的感官变得无比敏锐，肌肉充满了爆发力。'去吧，像猛兽一般战斗。'",
+            "icon": "🍎",
+            "effect": { "damageMultiplier": 1.3, "playerMaxHp": 20, "difficultyMultiplier": 1.1 }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "theme": "jungle",
+    "floorInTheme": 6,
+    "enterEvent": {
+      "id": "jungle_f6_enter",
+      "type": "enter_floor",
+      "title": "古木参天",
+      "text": "丛林的核心区域展现在你面前。这里的树木高达数百米，树冠遮蔽了整片天空。树干上刻满了古老的符文，根系深入地底形成了一个巨大的地下网络。你感到脚下的每一步都在被什么感知着。",
+      "autoTrigger": true,
+      "icon": "🌳"
+    }
+  },
+  {
+    "theme": "jungle",
+    "floorInTheme": 7,
+    "enterEvent": {
+      "id": "jungle_f7_enter",
+      "type": "treasure_found",
+      "title": "远古遗迹",
+      "text": "在巨大树根的缝隙中，你发现了一座被遗忘的石制神殿。神殿的壁画描绘了一个守护者——半人半树的巨大存在，它是丛林的意志化身。壁画警告：'唤醒守护者需要代价，但唯有它能净化丛林的腐化。'",
+      "autoTrigger": true,
+      "icon": "🏚️"
+    },
+    "campEvents": [
+      {
+        "id": "jungle_f7_camp",
+        "theme": "jungle",
+        "campIndex": 0,
+        "title": "腐化的真相",
+        "text": "德鲁伊的表情前所未有地严肃：'丛林守护者已经被腐化侵蚀。它曾是丛林的守护神，如今却成了暴虐的暴君。击败它，才能让丛林恢复本来的面目。'",
+        "npcName": "丛林德鲁伊",
+        "npcSprite": "🧙",
+        "choices": [
+          {
+            "id": "jungle_f7_purify",
+            "text": "准备净化仪式",
+            "resultText": "德鲁伊教你一段古老的净化咒语。'当你面对守护者时，用这个削弱它的腐化之力。'你将咒语铭记于心，感到一股纯净的自然之力充盈体内。",
+            "icon": "✨",
+            "effect": { "blessingType": "purification", "damageMultiplier": 1.15, "debuffImmune": ["corruption", "poison"], "regenPerTurn": 2 }
+          },
+          {
+            "id": "jungle_f7_berserk",
+            "text": "以暴制暴",
+            "resultText": "你决定用纯粹的力量击碎腐化。德鲁伊叹息道：'也许这是唯一的办法……'他将丛林中最凶猛野兽的力量注入你的体内，你的攻击变得狂暴而致命。",
+            "icon": "🦁",
+            "effect": { "damageMultiplier": 1.4, "critChance": 0.2, "playerMaxHp": -15 }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "theme": "jungle",
+    "floorInTheme": 8,
+    "enterEvent": {
+      "id": "jungle_f8_enter",
+      "type": "elite_encounter",
+      "title": "丛林巨兽",
+      "text": "地面剧烈震动，一棵巨树被撞倒——一头覆盖着苔藓和藤蔓的远古巨兽从丛林深处走来。它的眼中闪烁着狂暴的红光，显然已被腐化。这是守护者最忠诚的坐骑，你必须先通过它这一关！",
+      "autoTrigger": true,
+      "icon": "🦏"
+    }
+  },
+  {
+    "theme": "jungle",
+    "floorInTheme": 9,
+    "enterEvent": {
+      "id": "jungle_f9_enter",
+      "type": "camp_story",
+      "title": "世界树的根须",
+      "text": "你来到了丛林的圣地——世界树的根须之上。巨大的根系形成了一个天然的平台，中心有一汪清泉。德鲁伊站在泉边：'守护者就在前方。无论结果如何，丛林都会记住你的勇气。'",
+      "autoTrigger": true,
+      "icon": "🏕️"
+    },
+    "campEvents": [
+      {
+        "id": "jungle_f9_camp",
+        "theme": "jungle",
+        "campIndex": 0,
+        "title": "世界树之泉",
+        "text": "清泉散发着生命的光辉，这是世界树千年积累的精华。德鲁伊说这是你最后的机会来强化自己。",
+        "npcName": "世界树之泉",
+        "npcSprite": "💧",
+        "choices": [
+          {
+            "id": "jungle_f9_bathe",
+            "text": "沐浴世界树之泉",
+            "resultText": "泉水如液态的光芒包裹住你，你的伤势完全愈合，灵魂也变得纯净。你感到前所未有的完整。",
+            "icon": "✨",
+            "effect": { "playerMaxHp": 30, "playerShield": 15, "regenPerTurn": 3 }
+          },
+          {
+            "id": "jungle_f9_bless_weapon",
+            "text": "以泉水祝福武器",
+            "resultText": "你将武器浸入泉水中，它开始散发出翠绿的光芒。每一击都将携带大自然的力量，对腐化之物造成额外伤害。",
+            "icon": "⚔️",
+            "effect": { "damageMultiplier": 1.35, "blessingType": "nature_bane" }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "theme": "jungle",
+    "floorInTheme": 10,
+    "enterEvent": {
+      "id": "jungle_f10_enter",
+      "type": "before_battle",
+      "title": "丛林守护者",
+      "text": "世界树的心脏处，一个半人半树的巨大存在缓缓苏醒。它曾威严慈祥，如今却满身腐化与荆棘。守护者用沙哑的声音低吼：'又一只蝼蚁……丛林的秩序不容挑战！'树根从四面八方涌来，战斗开始了！",
+      "autoTrigger": true,
+      "icon": "🌲"
+    },
+    "victoryEvent": {
+      "id": "jungle_f10_victory",
+      "type": "after_victory",
+      "title": "丛林重生",
+      "text": "守护者身上的腐化在战斗中被净化。它跪倒在地，恢复了本来的面目——一位温柔而庄严的树之精灵。'感谢你……我做了太多错事……'它的泪水化为甘露洒向大地，枯萎的花朵重新绽放，腐化退去，丛林恢复了千年前的模样。",
+      "icon": "🌸"
+    }
+  },
+  {
+    "theme": "abyss",
+    "floorInTheme": 1,
+    "enterEvent": {
+      "id": "abyss_f1_enter",
+      "type": "enter_floor",
+      "title": "深渊的召唤",
+      "text": "你踏入了无尽的黑暗。没有光，没有声音，只有脚下冰冷的石阶在提醒你还在前行。深渊在呼吸——你感受到了它的脉搏，像是整个世界的心跳。它在召唤你，诱惑你走向更深处。低语声从四面八方传来，说着你无法理解的语言。",
+      "autoTrigger": true,
+      "icon": "🕳️"
+    }
+  },
+  {
+    "theme": "abyss",
+    "floorInTheme": 2,
+    "enterEvent": {
+      "id": "abyss_f2_enter",
+      "type": "trap_triggered",
+      "title": "暗影的注视",
+      "text": "你感到有什么东西在黑暗中注视着你。不是一双眼睛——是无数双。它们在你周围窃窃私语，评论着你的一举一动。突然，一道暗影从黑暗中扑来，你勉强躲过，但皮肤上留下了冰冷的灼痕。",
+      "autoTrigger": true,
+      "icon": "👁️"
+    },
+    "campEvents": [
+      {
+        "id": "abyss_f2_camp",
+        "theme": "abyss",
+        "campIndex": 0,
+        "title": "黑暗中的火光",
+        "text": "你在深渊中发现了一个微弱的光源——一朵在黑暗中顽强燃烧的幽蓝火焰。围绕它坐下，你感到了一丝安慰。",
+        "choices": [
+          {
+            "id": "abyss_f2_touch_flame",
+            "text": "触碰幽蓝火焰",
+            "resultText": "冰冷的火焰在你手指上跳动，将深渊的一部分力量刻入了你的灵魂。你获得了看穿黑暗的能力，但眼中偶尔闪过的紫色光芒提醒你，深渊的印记不会轻易消退。",
+            "icon": "🔥",
+            "effect": { "blessingType": "dark_sight", "critChance": 0.1, "playerMaxHp": -5 }
+          },
+          {
+            "id": "abyss_f2_warm_flame",
+            "text": "在火焰旁取暖",
+            "resultText": "你选择守护这朵微弱的火焰，它的温暖修复了你冻伤的躯体。深渊的寒冷暂时退去了。",
+            "icon": "🕯️",
+            "effect": { "playerMaxHp": 15, "regenPerTurn": 1 }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "theme": "abyss",
+    "floorInTheme": 3,
+    "enterEvent": {
+      "id": "abyss_f3_enter",
+      "type": "mysterious_event",
+      "title": "深渊的低语",
+      "text": "低语声变得清晰了。你终于能听懂那些声音——它们在诉说诱惑：'放下武器……闭上双眼……在这里，你不需要挣扎……'声音越来越甜美，越来越难以抗拒。你必须紧紧握住武器才能保持清醒。",
+      "autoTrigger": true,
+      "icon": "🌀"
+    },
+    "campEvents": [
+      {
+        "id": "abyss_f3_camp",
+        "theme": "abyss",
+        "campIndex": 0,
+        "title": "兜帽人的忠告",
+        "text": "一个身穿黑袍、兜帽遮面的身影不知何时出现在你身旁。你看不到他的脸，但能感受到他的目光。'你听到了深渊的声音，对吗？不要相信它们——也不要完全拒绝。在黑暗中行走需要平衡。'",
+        "npcName": "神秘兜帽人",
+        "npcSprite": "🧥",
+        "choices": [
+          {
+            "id": "abyss_f3_embrace_dark",
+            "text": "拥抱深渊的低语",
+            "resultText": "你放松了心防，让低语声进入意识。它们教导你如何利用黑暗的力量——你的攻击变得诡异莫测，敌人无法预判你的动向。但你的内心深处，有什么东西正在改变。",
+            "icon": "🌑",
+            "effect": { "damageMultiplier": 1.25, "critChance": 0.15, "blessingType": "abyss_whisper" }
+          },
+          {
+            "id": "abyss_f3_resist_dark",
+            "text": "坚定意志，抵抗诱惑",
+            "resultText": "你咬紧牙关，将低语声隔绝在外。兜帽人微微点头：'明智的选择。深渊最害怕的，是坚定的意志。'他递给你一枚银色的护符，散发着温暖的光。",
+            "icon": "📿",
+            "effect": { "playerMaxHp": 20, "playerShield": 10, "debuffImmune": ["fear", "confusion"] }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "theme": "abyss",
+    "floorInTheme": 4,
+    "enterEvent": {
+      "id": "abyss_f4_enter",
+      "type": "enter_floor",
+      "title": "绝望之壁",
+      "text": "你来到了一面巨大的黑曜石墙前。墙壁上刻满了扭曲的面孔——每一个都是曾经踏入深渊却未能返回的冒险者。他们的嘴张开着，似乎在无声地尖叫。这就是深渊的警示：越深入，代价越大。",
+      "autoTrigger": true,
+      "icon": "🧱"
+    }
+  },
+  {
+    "theme": "abyss",
+    "floorInTheme": 5,
+    "enterEvent": {
+      "id": "abyss_f5_enter",
+      "type": "elite_encounter",
+      "title": "坠落的天使",
+      "text": "在一片深渊的光芒中，你看到了一个令人心碎的景象——一位天使被黑暗锁链吊在半空中。她曾经光耀万丈的翅膀已被染黑，但眼中仍残留着一丝神圣的光芒。'救我……或者……杀了我……'她的声音在希望与绝望之间颤抖。",
+      "autoTrigger": true,
+      "icon": "👼"
+    },
+    "campEvents": [
+      {
+        "id": "abyss_f5_camp",
+        "theme": "abyss",
+        "campIndex": 0,
+        "title": "天使的祈求",
+        "text": "天使用最后的力气看着你：'我的力量正在消逝……如果你能将我的圣光之力提取出来，它会成为你对抗深渊领主的利器。但如果你净化我的翅膀，我将为你祈祷——虽然我无法再战斗，但我的祝福会守护你。'",
+        "npcName": "坠落天使",
+        "npcSprite": "👼",
+        "choices": [
+          {
+            "id": "abyss_f5_extract_power",
+            "text": "提取天使的圣光之力",
+            "resultText": "你将手放在天使的额头上，圣光如流水般涌入你的体内。天使的翅膀彻底暗淡，她微笑着闭上了眼：'请用这力量……终结黑暗……'你感到灼热而强大的力量在体内奔涌。",
+            "icon": "⚡",
+            "effect": { "damageMultiplier": 1.35, "blessingType": "holy_power", "playerMaxHp": -10 }
+          },
+          {
+            "id": "abyss_f5_purify",
+            "text": "净化天使的翅膀",
+            "resultText": "你将所有的信念注入净化之力。黑色的锁链断裂，天使的翅膀缓缓恢复了金色。她无法再站起，但她的眼泪化为光点洒落在你身上：'谢谢你……愿圣光永远庇护你。'你感到温暖而坚定的守护。",
+            "icon": "✨",
+            "effect": { "regenPerTurn": 4, "playerMaxHp": 25, "blessingType": "angel_blessing", "debuffImmune": ["curse", "darkness"] }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "theme": "abyss",
+    "floorInTheme": 6,
+    "enterEvent": {
+      "id": "abyss_f6_enter",
+      "type": "enter_floor",
+      "title": "知识之渊",
+      "text": "深渊的形态开始扭曲——空间不再遵循常理，你有时感觉自己在向上走，却越陷越深。黑暗中漂浮着发光的符文，它们组成了某种古老的语言，记载着这个世界的终极秘密。",
+      "autoTrigger": true,
+      "icon": "📚"
+    }
+  },
+  {
+    "theme": "abyss",
+    "floorInTheme": 7,
+    "enterEvent": {
+      "id": "abyss_f7_enter",
+      "type": "treasure_found",
+      "title": "禁忌的知识",
+      "text": "你找到了一本在虚空中漂浮的书——'深渊真言'。它记载了深渊领主的真名与弱点，同时也揭示了深渊的本质：深渊不是邪恶的，它只是无底的渴望，吞噬一切存在以求填充永恒的虚无。知晓真名者，可以命令深渊。",
+      "autoTrigger": true,
+      "icon": "📖"
+    },
+    "campEvents": [
+      {
+        "id": "abyss_f7_camp",
+        "theme": "abyss",
+        "campIndex": 0,
+        "title": "领主的真名",
+        "text": "兜帽人翻开'深渊真言'的最后一页，上面写着一个无法发音的名字。'深渊领主的真名……一旦念出，将暂时削弱他的力量。但代价是——你的一部分记忆将永远消失。'",
+        "npcName": "神秘兜帽人",
+        "npcSprite": "🧥",
+        "choices": [
+          {
+            "id": "abyss_f7_speak_name",
+            "text": "念出真名",
+            "resultText": "你念出了那个名字。世界瞬间静止，深渊剧烈颤抖。你感到脑海中有什么在被剥离——一些珍贵的记忆变得模糊了。但深渊领主的力量确实被削弱了。",
+            "icon": "🔮",
+            "effect": { "damageMultiplier": 1.3, "difficultyMultiplier": 0.85, "blessingType": "true_name" }
+          },
+          {
+            "id": "abyss_f7_keep_secret",
+            "text": "将真名藏于心中",
+            "resultText": "你选择保留自己的记忆，将真名深深锁在心底。兜帽人点了点头：'也许这是更明智的选择。当你面对领主时，真名的力量仍会在暗中帮助你。'",
+            "icon": "🔒",
+            "effect": { "critChance": 0.15, "playerMaxHp": 20, "blessingType": "hidden_name" }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "theme": "abyss",
+    "floorInTheme": 8,
+    "enterEvent": {
+      "id": "abyss_f8_enter",
+      "type": "elite_encounter",
+      "title": "深渊的看门人",
+      "text": "黑暗凝聚成一个巨大的形体——深渊的看门人。它曾是第一位踏入深渊的英雄，如今已化为黑暗的化身。它手持一把吞噬光明的巨剑，低吼道：'回去吧……前方的黑暗，不是凡人能承受的。'",
+      "autoTrigger": true,
+      "icon": "⚔️"
+    }
+  },
+  {
+    "theme": "abyss",
+    "floorInTheme": 9,
+    "enterEvent": {
+      "id": "abyss_f9_enter",
+      "type": "camp_story",
+      "title": "最后的微光",
+      "text": "在深渊的最深处，你发现了一丝微弱的光——那是你自己内心的光。兜帽人站在光的边缘：'深渊领主就在前方。记住，无论黑暗多么深沉，你心中的光永远不会熄灭。'他摘下了兜帽，露出了一张与你一模一样的脸。",
+      "autoTrigger": true,
+      "icon": "🕯️"
+    },
+    "campEvents": [
+      {
+        "id": "abyss_f9_camp",
+        "theme": "abyss",
+        "campIndex": 0,
+        "title": "与自己的对话",
+        "text": "兜帽人——或者说另一个你——露出了温和的微笑：'我就是你内心中被深渊触动的那一部分。现在，选择吧——让我融入你的意识，还是让我化为守护你的力量。'",
+        "npcName": "另一个你",
+        "npcSprite": "🧥",
+        "choices": [
+          {
+            "id": "abyss_f9_merge",
+            "text": "让我融入你的意识",
+            "resultText": "另一个你化为光点融入你的身体。你感到对深渊的理解达到了前所未有的深度——黑暗不再是敌人，而是你可以驾驭的力量。你的眼中闪烁着紫色的光芒。",
+            "icon": "🌑",
+            "effect": { "damageMultiplier": 1.35, "blessingType": "abyss_mastery", "debuffImmune": ["fear", "confusion", "darkness"] }
+          },
+          {
+            "id": "abyss_f9_guardian",
+            "text": "让我化为守护之力",
+            "resultText": "另一个你化为金色的护盾覆盖在你身上。'我会守护你到最后。'他的声音在你心中回荡。你感到无比的安心和坚定。",
+            "icon": "✨",
+            "effect": { "playerMaxHp": 35, "playerShield": 20, "regenPerTurn": 3, "companion": "inner_light" }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "theme": "abyss",
+    "floorInTheme": 10,
+    "enterEvent": {
+      "id": "abyss_f10_enter",
+      "type": "before_battle",
+      "title": "深渊领主",
+      "text": "你来到了深渊的底端。一个由纯粹的黑暗凝聚而成的存在坐在虚无的王座上——深渊领主。他没有面容，只有一个不断变化的黑洞。'你来了……我等待了千年。让我吞噬你，结束你无谓的挣扎吧。'整个深渊都在颤抖，黑暗如海啸般涌来。",
+      "autoTrigger": true,
+      "icon": "🌑"
+    },
+    "victoryEvent": {
+      "id": "abyss_f10_victory",
+      "type": "after_victory",
+      "title": "深渊的终结",
+      "text": "深渊领主的形体开始崩塌。在最后一刻，他露出了一个微笑——是的，黑暗也会微笑。'谢谢你……让我终于可以不再饥饿了……'他化为无数光点散去，深渊的黑暗逐渐消退，久违的光芒从上方洒落。你望向头顶——那是自由的天空。",
+      "icon": "🌅"
+    }
+  },
+  {
+    "theme": "dragon_nest",
+    "floorInTheme": 1,
+    "enterEvent": {
+      "id": "dragon_f1_enter",
+      "type": "enter_floor",
+      "title": "灼热之地",
+      "text": "空气变得灼热难耐，地面上的裂缝中不断喷出火焰。远处的山脉中传来低沉的龙吟，大地为之震颤。你已踏入龙族的领地——这里的一切都在烈焰中锻造，只有最强者才能生存。硫磺的味道刺鼻，但你不会退缩。",
+      "autoTrigger": true,
+      "icon": "🔥"
+    }
+  },
+  {
+    "theme": "dragon_nest",
+    "floorInTheme": 2,
+    "enterEvent": {
+      "id": "dragon_f2_enter",
+      "type": "trap_triggered",
+      "title": "熔岩喷涌",
+      "text": "地面突然裂开，滚烫的熔岩从裂缝中喷涌而出！你敏捷地跳到一块岩石上，但周围的地形正在快速变化——这里的一切都是流动的、危险的。",
+      "autoTrigger": true,
+      "icon": "🌋"
+    },
+    "campEvents": [
+      {
+        "id": "dragon_f2_camp",
+        "theme": "dragon_nest",
+        "campIndex": 0,
+        "title": "岩浆湖畔",
+        "text": "你找到了一处相对安全的熔岩石台，可以暂时休息。岩浆湖中偶尔冒出气泡，发出咕嘟咕嘟的声音。",
+        "choices": [
+          {
+            "id": "dragon_f2_gather_fire",
+            "text": "收集火焰精华",
+            "resultText": "你小心翼翼地从岩浆中提取了一团火焰精华。它在你手中跳动，温暖而危险。你将它融入了武器中。",
+            "icon": "🔥",
+            "effect": { "damageMultiplier": 1.1, "blessingType": "flame_imbue" }
+          },
+          {
+            "id": "dragon_f2_rest_cool",
+            "text": "在阴凉处休息",
+            "resultText": "你找到了一处被岩石遮挡的角落，远离灼热的气浪。短暂的凉爽让你恢复了些许体力。",
+            "icon": "❄️",
+            "effect": { "playerMaxHp": 15, "regenPerTurn": 1 }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "theme": "dragon_nest",
+    "floorInTheme": 3,
+    "enterEvent": {
+      "id": "dragon_f3_enter",
+      "type": "treasure_found",
+      "title": "龙蛋的发现",
+      "text": "在一处隐秘的洞穴中，你发现了一颗散发着金色光芒的龙蛋。蛋壳上的纹路如活物般脉动，内部传来微弱的心跳声。这是一颗尚未孵化的远古龙蛋——它的力量无法估量。",
+      "autoTrigger": true,
+      "icon": "🥚"
+    },
+    "campEvents": [
+      {
+        "id": "dragon_f3_camp",
+        "theme": "dragon_nest",
+        "campIndex": 0,
+        "title": "龙祭司的现身",
+        "text": "一个身穿红色祭袍的人影从火焰中走出。他的双眼如龙瞳般竖直，皮肤上布满了鳞片般的纹路。'你找到了龙蛋……我是叛逃的龙族祭司。龙族已堕落，但龙蛋中蕴含着远古纯粹的力量。'",
+        "npcName": "叛逃龙祭司",
+        "npcSprite": "🧙",
+        "choices": [
+          {
+            "id": "dragon_f3_absorb_egg",
+            "text": "吸收龙蛋的力量",
+            "resultText": "你将手掌放在龙蛋上，金色的力量如洪流般涌入你的身体。你的皮肤上浮现出淡淡的鳞纹，双眼中燃起了金色的火焰。龙蛋的光芒暗淡了，但你获得了远古龙族的力量。",
+            "icon": "⚡",
+            "effect": { "damageMultiplier": 1.25, "playerMaxHp": 15, "blessingType": "dragon_blood" }
+          },
+          {
+            "id": "dragon_f3_protect_egg",
+            "text": "保护龙蛋",
+            "resultText": "你将龙蛋小心地收入背包。龙祭司露出赞许的目光：'你选择了守护而非掠夺。龙蛋会感应到你的善意——它将用自己的方式帮助你。'蛋壳散发出温暖的光芒，包裹住了你。",
+            "icon": "🛡️",
+            "effect": { "playerShield": 15, "regenPerTurn": 2, "companion": "dragon_egg" }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "theme": "dragon_nest",
+    "floorInTheme": 4,
+    "enterEvent": {
+      "id": "dragon_f4_enter",
+      "type": "enter_floor",
+      "title": "龙族要塞",
+      "text": "建筑开始显现——由黑曜石和龙骨构成的巨大要塞矗立在火焰之中。墙壁上刻满了龙族文字，讲述着龙族从远古至今的荣耀与骄傲。空气中弥漫着硫磺和灰烬的味道。",
+      "autoTrigger": true,
+      "icon": "🏰"
+    }
+  },
+  {
+    "theme": "dragon_nest",
+    "floorInTheme": 5,
+    "enterEvent": {
+      "id": "dragon_f5_enter",
+      "type": "elite_encounter",
+      "title": "龙族教团",
+      "text": "一群身穿龙鳞铠甲的教徒挡住了你的去路。他们跪拜在一条年轻龙的脚下，高声吟唱着：'血祭龙神！血祭龙神！'年轻龙的眼中没有野性，只有被控制的空洞。你必须击败教徒和被奴役的龙！",
+      "autoTrigger": true,
+      "icon": "🐉"
+    },
+    "campEvents": [
+      {
+        "id": "dragon_f5_camp",
+        "theme": "dragon_nest",
+        "campIndex": 0,
+        "title": "教团的秘密",
+        "text": "龙祭司的表情变得沉重：'龙族教团已经彻底堕入了狂热。他们用禁忌仪式控制龙族，将它们变为战争兵器。而那条远古巨龙……是他们仪式的核心。'",
+        "npcName": "叛逃龙祭司",
+        "npcSprite": "🧙",
+        "choices": [
+          {
+            "id": "dragon_f5_learn_ritual",
+            "text": "学习破坏仪式的方法",
+            "resultText": "龙祭司将禁忌仪式的原理教给了你。'理解仪式，才能瓦解仪式。当你面对远古巨龙时，你将知道如何切断教团对它的控制。'你感到脑海中多了一份至关重要的知识。",
+            "icon": "📜",
+            "effect": { "blessingType": "ritual_breaker", "critChance": 0.15, "debuffImmune": ["mind_control", "fear"] }
+          },
+          {
+            "id": "dragon_f5_dragon_power",
+            "text": "汲取被释放之龙的力量",
+            "resultText": "你将那条被奴役的年轻龙释放后，它将最后的力量赠予了你。灼热的龙息融入你的血液，你的攻击开始附带火焰的力量。",
+            "icon": "🔥",
+            "effect": { "damageMultiplier": 1.3, "playerMaxHp": 10, "blessingType": "dragon_breath" }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "theme": "dragon_nest",
+    "floorInTheme": 6,
+    "enterEvent": {
+      "id": "dragon_f6_enter",
+      "type": "enter_floor",
+      "title": "龙骨荒原",
+      "text": "你来到了一片由巨龙骸骨构成的荒原。无数龙的遗骸散落在焦黑的大地上，它们的翅膀骨如倒塌的城墙，肋骨如拱门。这是龙族的墓地——也是龙族千年兴衰的见证。",
+      "autoTrigger": true,
+      "icon": "💀"
+    }
+  },
+  {
+    "theme": "dragon_nest",
+    "floorInTheme": 7,
+    "enterEvent": {
+      "id": "dragon_f7_enter",
+      "type": "mysterious_event",
+      "title": "龙族仪式",
+      "text": "你在地下大厅中目睹了一场可怕的仪式：教团的大祭司正在将数十条幼龙的灵魂抽取，注入一条沉睡中的远古巨龙体内。巨龙的身体开始膨胀，眼中闪烁着疯狂的红光。'再过不久，'大祭司狂笑道，'龙神将降临！'",
+      "autoTrigger": true,
+      "icon": "⚗️"
+    },
+    "campEvents": [
+      {
+        "id": "dragon_f7_camp",
+        "theme": "dragon_nest",
+        "campIndex": 0,
+        "title": "最后的抉择",
+        "text": "龙祭司将你拉到一旁：'远古巨龙已被教团扭曲，但它的灵魂深处还残留着本真。击败它只是第一步——你必须选择如何面对它：以龙族的方式决斗，还是尝试唤醒它的本真。'",
+        "npcName": "叛逃龙祭司",
+        "npcSprite": "🧙",
+        "choices": [
+          {
+            "id": "dragon_f7_dragon_duel",
+            "text": "以龙族方式决斗",
+            "resultText": "龙祭司将远古龙血涂在你的武器上。'这是龙族最高荣耀的战斗方式——以力量正面对决。'你的武器散发出金色的龙焰，任何龙族都无法忽视这样的挑战。",
+            "icon": "⚔️",
+            "effect": { "damageMultiplier": 1.4, "critChance": 0.2, "playerMaxHp": -10 }
+          },
+          {
+            "id": "dragon_f7_awaken",
+            "text": "准备唤醒龙之本真",
+            "resultText": "龙祭司教你一段古老的龙族摇篮曲——那是龙母哄幼龙入睡时唱的歌。'当远古巨龙听到这首歌，教团的控制将被削弱。'你将歌词牢牢记在心中。",
+            "icon": "🎵",
+            "effect": { "blessingType": "dragon_lullaby", "playerMaxHp": 20, "regenPerTurn": 3, "debuffImmune": ["mind_control", "fear", "burn"] }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "theme": "dragon_nest",
+    "floorInTheme": 8,
+    "enterEvent": {
+      "id": "dragon_f8_enter",
+      "type": "elite_encounter",
+      "title": "精英龙卫",
+      "text": "一条浑身覆盖着赤红鳞片的精英龙从天而降，挡住了你的去路。它口中的火焰足以融化钢铁，利爪如刀刃般锋利。这是远古巨龙最强大的护卫——击败它，才能接近龙神殿的核心！",
+      "autoTrigger": true,
+      "icon": "🐲"
+    }
+  },
+  {
+    "theme": "dragon_nest",
+    "floorInTheme": 9,
+    "enterEvent": {
+      "id": "dragon_f9_enter",
+      "type": "camp_story",
+      "title": "龙神殿前",
+      "text": "你站在龙神殿的入口前，灼热的气浪从殿内涌出。龙祭司在你身后轻声说：'无论结果如何……谢谢你为龙族做的一切。'他将一枚龙牙护符放在你手中，然后化为一团火焰消散——他的使命已经完成。",
+      "autoTrigger": true,
+      "icon": "🏕️"
+    },
+    "campEvents": [
+      {
+        "id": "dragon_f9_camp",
+        "theme": "dragon_nest",
+        "campIndex": 0,
+        "title": "龙牙护符",
+        "text": "龙祭司留下的护符散发着温暖的光芒。你可以感受到其中蕴含的龙族之力——这是他最后的礼物。",
+        "npcName": "龙牙护符",
+        "npcSprite": "🔮",
+        "choices": [
+          {
+            "id": "dragon_f9_activate",
+            "text": "激活护符的全部力量",
+            "resultText": "护符猛然爆发出金色的光芒，龙族的远古之力灌注全身。你感到自己仿佛与龙合为一体，视野变得锐利，力量成倍增长。但如此强大的力量也让你的身体承受了巨大的负担。",
+            "icon": "⚡",
+            "effect": { "damageMultiplier": 1.4, "critChance": 0.25, "playerMaxHp": -15 }
+          },
+          {
+            "id": "dragon_f9_steady",
+            "text": "稳健地运用护符之力",
+            "resultText": "你让护符的力量缓缓流入体内，不急不躁。温暖的力量修复了你的伤势，同时为你的武器附上了一层不灭的龙焰。这股力量虽不如全力爆发那般惊人，却更加持久和稳定。",
+            "icon": "🛡️",
+            "effect": { "playerMaxHp": 25, "playerShield": 15, "damageMultiplier": 1.2, "blessingType": "dragon_flame" }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "theme": "dragon_nest",
+    "floorInTheme": 10,
+    "enterEvent": {
+      "id": "dragon_f10_enter",
+      "type": "before_battle",
+      "title": "远古巨龙",
+      "text": "龙神殿的核心，一条巨大得超乎想象的远古巨龙盘踞在火山口之上。它的鳞片如山岳般厚重，每一次呼吸都引发地震。教团的仪式让它的眼中只剩下疯狂，但当它看到你时，某个深处的意识在挣扎：'杀了我……还是……救我……'烈焰与悲伤交织。",
+      "autoTrigger": true,
+      "icon": "🐉"
+    },
+    "victoryEvent": {
+      "id": "dragon_f10_victory",
+      "type": "after_victory",
+      "title": "龙族之魂",
+      "text": "远古巨龙轰然倒地，教团的黑暗仪式终于被打破。它的眼中重新闪现出千年的智慧与温柔：'你让我重获自由……龙族不会忘记你的恩情。'巨龙展开翅膀，一声长啸响彻天际。教团的残余在龙威下灰飞烟灭，被奴役的幼龙们重获自由，围绕着你欢快地飞翔。",
+      "icon": "🐲"
+    }
+  },
+  {
+    "theme": "void",
+    "floorInTheme": 1,
+    "enterEvent": {
+      "id": "void_f1_enter",
+      "type": "enter_floor",
+      "title": "虚空之门",
+      "text": "你穿越了一道由纯粹光芒构成的门——然后，世界消失了。没有上下左右，没有颜色和声音，只有无尽的虚无。你的身体在飘浮，你的意识在扩散。这就是虚空——存在的边界，一切的终结与起源。",
+      "autoTrigger": true,
+      "icon": "🌌"
+    }
+  },
+  {
+    "theme": "void",
+    "floorInTheme": 2,
+    "enterEvent": {
+      "id": "void_f2_enter",
+      "type": "trap_triggered",
+      "title": "现实裂缝",
+      "text": "空间突然裂开，你的身体被撕扯向不同的方向！在虚空中，物理法则不再适用——你的感知正在被扭曲。你勉强稳定了自己，但已经分不清什么是真实的了。",
+      "autoTrigger": true,
+      "icon": "💫"
+    },
+    "campEvents": [
+      {
+        "id": "void_f2_camp",
+        "theme": "void",
+        "campIndex": 0,
+        "title": "虚空中的一隅",
+        "text": "你在虚无中找到了一小块稳定的区域——这里似乎还残留着某个世界的碎片，有地面和微弱的光。",
+        "choices": [
+          {
+            "id": "void_f2_examine",
+            "text": "检查世界碎片",
+            "resultText": "你仔细观察这些碎片——它们是一个消失世界的残骸。从碎片中你提取出了一些有用的信息，了解了虚空的运作方式。",
+            "icon": "🔍",
+            "effect": { "blessingType": "void_insight", "critChance": 0.1 }
+          },
+          {
+            "id": "void_f2_meditate",
+            "text": "在碎片上冥想",
+            "resultText": "你盘腿坐下，在虚空中冥想。逐渐地，你的意识变得更加敏锐，身体的伤口也在这个不存在时间的空间中慢慢愈合。",
+            "icon": "🧘",
+            "effect": { "playerMaxHp": 15, "regenPerTurn": 1 }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "theme": "void",
+    "floorInTheme": 3,
+    "enterEvent": {
+      "id": "void_f3_enter",
+      "type": "mysterious_event",
+      "title": "记忆碎片",
+      "text": "虚空中漂浮着发光的碎片——它们是记忆。你看到了自己的过去：童年的笑容、师傅的教导、第一次握剑的颤抖……这些记忆如此真实，却又如此遥远。它们正在被虚空吞噬。",
+      "autoTrigger": true,
+      "icon": "💭"
+    },
+    "campEvents": [
+      {
+        "id": "void_f3_camp",
+        "theme": "void",
+        "campIndex": 0,
+        "title": "光之存在的指引",
+        "text": "一个由纯粹光芒构成的存在出现在你面前。它没有面容，但你能感受到它的善意。'虚空正在吞噬一切记忆与存在。但你不同——你身上有某种虚空无法消化东西。告诉我，你害怕遗忘，还是害怕被记住？'",
+        "npcName": "光之存在",
+        "npcSprite": "✨",
+        "choices": [
+          {
+            "id": "void_f3_embrace_memory",
+            "text": "我害怕遗忘——抓住记忆",
+            "resultText": "你伸手抓住飘散的记忆碎片，将它们紧紧拥入怀中。过去的一切在你心中重新鲜活起来，给你力量和方向。'记忆是锚，'光之存在说，'它让你在虚空中不迷失自我。'",
+            "icon": "💎",
+            "effect": { "blessingType": "memory_anchor", "playerMaxHp": 20, "debuffImmune": ["confusion", "amnesia"] }
+          },
+          {
+            "id": "void_f3_release_memory",
+            "text": "我害怕被记住——释放记忆",
+            "resultText": "你松开双手，让记忆碎片自由飘散。一种奇异的解脱感涌上心头——没有过去的束缚，你变得空灵而自由，力量从虚无中源源不断地涌来。'空即是色，'光之存在说，'你已触及虚空的真理。'",
+            "icon": "🌀",
+            "effect": { "damageMultiplier": 1.25, "blessingType": "void_embrace", "playerMaxHp": -5 }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "theme": "void",
+    "floorInTheme": 4,
+    "enterEvent": {
+      "id": "void_f4_enter",
+      "type": "enter_floor",
+      "title": "镜像走廊",
+      "text": "你进入了一条由无数镜面构成的走廊。每一面镜子都映出一个不同版本的你——有的已经倒下，有的成为暴君，有的化为虚空。这是所有可能性的交汇点，令人不安却又无法移开视线。",
+      "autoTrigger": true,
+      "icon": "🪞"
+    }
+  },
+  {
+    "theme": "void",
+    "floorInTheme": 5,
+    "enterEvent": {
+      "id": "void_f5_enter",
+      "type": "elite_encounter",
+      "title": "自我的回响",
+      "text": "一面巨大的镜子碎裂了——一个与你一模一样的身影走了出来。它的动作、呼吸甚至眼神都与你相同，但带着一种虚无的空洞。这是你在虚空中留下的回响，它已经成为了独立的存在。'只有一个我们能走出去。'",
+      "autoTrigger": true,
+      "icon": "👤"
+    },
+    "campEvents": [
+      {
+        "id": "void_f5_camp",
+        "theme": "void",
+        "campIndex": 0,
+        "title": "回响的抉择",
+        "text": "击败回响后，它没有消散，而是化为一个半透明的影子站在你面前。'我拥有你所有的战斗经验，也拥有你未曾选择的道路。让我成为你的力量，或者吸收我来强化自身。'",
+        "npcName": "自我的回响",
+        "npcSprite": "👤",
+        "choices": [
+          {
+            "id": "void_f5_ally",
+            "text": "让回响成为伙伴",
+            "resultText": "回响微微一笑，化为光影融入你的身影。从今以后，它将在战斗中为你提供协助——预测敌人的行动，提醒你遗漏的细节。你不再是一个人在战斗。",
+            "icon": "🤝",
+            "effect": { "companion": "echo_ally", "critChance": 0.2, "regenPerTurn": 2, "playerMaxHp": 15 }
+          },
+          {
+            "id": "void_f5_absorb",
+            "text": "吸收回响的力量",
+            "resultText": "你将回响吸纳进体内。它的力量与你的合为一体，你感到前所未有的强大——但也有一丝孤独，仿佛失去了什么重要的东西。",
+            "icon": "💫",
+            "effect": { "damageMultiplier": 1.35, "playerMaxHp": 20, "blessingType": "echo_power" }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "theme": "void",
+    "floorInTheme": 6,
+    "enterEvent": {
+      "id": "void_f6_enter",
+      "type": "enter_floor",
+      "title": "存在的消融",
+      "text": "虚空开始影响你的身体——你的指尖偶尔变得透明，像是要消散在虚无之中。光之存在出现在你身旁：'你的存在正在被虚空侵蚀。你必须加快脚步，否则你将永远成为虚空的一部分。'",
+      "autoTrigger": true,
+      "icon": "🌀"
+    }
+  },
+  {
+    "theme": "void",
+    "floorInTheme": 7,
+    "enterEvent": {
+      "id": "void_f7_enter",
+      "type": "treasure_found",
+      "title": "虚空的真相",
+      "text": "你找到了一座悬浮在虚空中的石碑。石碑上刻着虚空的起源：虚空皇帝曾是一个试图拯救世界的英雄，他将自己献祭以封印世界之外的混沌。但千年的孤独让他失去了自我，只剩下无尽的虚无与吞噬的本能。",
+      "autoTrigger": true,
+      "icon": "🗿"
+    },
+    "campEvents": [
+      {
+        "id": "void_f7_camp",
+        "theme": "void",
+        "campIndex": 0,
+        "title": "皇帝的悲剧",
+        "text": "光之存在的光芒变得黯淡：'虚空皇帝……曾经是我最亲密的战友。他选择了牺牲，而我选择了守护。如今，他已不再是原来的他——但也许，你能够触及他残存的人性。'",
+        "npcName": "光之存在",
+        "npcSprite": "✨",
+        "choices": [
+          {
+            "id": "void_f7_empathy",
+            "text": "以共鸣触及他的人性",
+            "resultText": "光之存在将一缕光芒注入你的心中——那是虚空皇帝曾经最珍视的记忆碎片。'当你面对他时，这份共鸣将唤醒他沉睡的意志。'你感到心中多了一份温暖而悲伤的力量。",
+            "icon": "💝",
+            "effect": { "blessingType": "empathy_resonance", "regenPerTurn": 3, "playerMaxHp": 20, "debuffImmune": ["despair", "void_touch"] }
+          },
+          {
+            "id": "void_f7_annihilate",
+            "text": "准备彻底消灭他",
+            "resultText": "你选择不带感情的战斗。光之存在沉默了许久，然后递给你一柄由纯粹光芒凝聚的剑：'如果无法拯救他……就让他安息吧。'光剑在你手中燃烧，足以切割虚空本身。",
+            "icon": "⚔️",
+            "effect": { "damageMultiplier": 1.4, "critChance": 0.2, "blessingType": "light_slasher" }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "theme": "void",
+    "floorInTheme": 8,
+    "enterEvent": {
+      "id": "void_f8_enter",
+      "type": "elite_encounter",
+      "title": "虚空先驱",
+      "text": "一个由扭曲空间构成的巨大存在出现在你面前——虚空先驱。它是虚空皇帝意志的延伸，是毁灭的使者。它没有形体，只有不断坍塌和重组的空间扭曲。'存在……是……错误……'它用令人崩溃的声音宣告。",
+      "autoTrigger": true,
+      "icon": "🌀"
+    }
+  },
+  {
+    "theme": "void",
+    "floorInTheme": 9,
+    "enterEvent": {
+      "id": "void_f9_enter",
+      "type": "camp_story",
+      "title": "存在的核心",
+      "text": "你来到了虚空的核心——一片绝对的空白。光之存在站在那里，它的光芒比任何时候都要耀眼。'从这里开始，你将独自面对他。但请记住——我永远在你身后。'它化为漫天的星光洒落在你身上，温暖而坚定。",
+      "autoTrigger": true,
+      "icon": "🌟"
+    },
+    "campEvents": [
+      {
+        "id": "void_f9_camp",
+        "theme": "void",
+        "campIndex": 0,
+        "title": "星光之礼",
+        "text": "光之存在留下的星光照亮了你的内心。在这片绝对的虚无中，你感受到了从未有过的坚定。",
+        "npcName": "星光",
+        "npcSprite": "⭐",
+        "choices": [
+          {
+            "id": "void_f9_become_light",
+            "text": "化为光之容器",
+            "resultText": "你敞开身心，让星光完全涌入。你的身体散发出柔和的光芒——你成为了光之存在的容器，它的力量与意志将通过你展现。在虚空中，你就是最耀眼的光。",
+            "icon": "✨",
+            "effect": { "blessingType": "light_vessel", "playerMaxHp": 30, "playerShield": 20, "regenPerTurn": 4, "debuffImmune": ["void_touch", "despair", "amnesia"] }
+          },
+          {
+            "id": "void_f9_forge_weapon",
+            "text": "以星光铸造武器",
+            "resultText": "你将星光凝聚在武器之上，锻造出了一柄前所未见的光之兵器。它的光芒足以撕裂虚空，但也将消耗你大量的生命力量。",
+            "icon": "⚔️",
+            "effect": { "damageMultiplier": 1.5, "critChance": 0.25, "playerMaxHp": -20, "blessingType": "star_forge" }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "theme": "void",
+    "floorInTheme": 10,
+    "enterEvent": {
+      "id": "void_f10_enter",
+      "type": "before_battle",
+      "title": "虚空皇帝",
+      "text": "虚空的中心，一个无法描述的存在缓缓显现。它既是虚无本身，又曾是活生生的英雄。千年的孤独与牺牲将它变成了吞噬一切的深渊。但在这无尽的黑暗中，你看到了一丝微弱的光——那是他残存的人性在向你呼救。'终结我……或者……被虚空吞噬……'",
+      "autoTrigger": true,
+      "icon": "👑"
+    },
+    "victoryEvent": {
+      "id": "void_f10_victory",
+      "type": "after_victory",
+      "title": "存在的证明",
+      "text": "虚空皇帝的形体开始消散，但在最后一刻，他找回了千年前的面容——那是一个疲惫却温柔的战士。'谢谢你……让我想起了……自己是谁……'他微笑着化为漫天星光，与光之存在的光芒交织在一起。虚空不再是虚无——它成为了新世界的摇篮，无数可能性在星光中诞生。而你，将带着所有这些故事，继续前行。",
+      "icon": "🌟"
+    }
+  }
+]

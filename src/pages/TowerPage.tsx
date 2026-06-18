@@ -1,14 +1,38 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTowerStore } from '../store/useTowerStore';
-import { TOWER_TOTAL_FLOORS, TOWER_BLESSINGS, TOWER_DEBUFFS, QUALITY_COLORS, QUALITY_NAMES } from '../types';
-import type { TowerBlessing, TowerDebuffType } from '../types';
-import { Mountain, Castle, Tent, Trophy, Coins, Heart, Shield, Zap, X, Play, Home, BookOpen, Star, Trash2 } from 'lucide-react';
+import { TOWER_TOTAL_FLOORS, TOWER_BLESSINGS, TOWER_DEBUFFS, TOWER_THEMES, QUALITY_COLORS, QUALITY_NAMES } from '../types';
+import type { TowerBlessing, TowerDebuffType, TowerNarrativeChoice, TowerBranchChoice } from '../types';
+import { Mountain, Castle, Tent, Trophy, Coins, Heart, Shield, Zap, X, Play, Home, BookOpen, Star, Trash2, Swords, Scroll, Sparkles } from 'lucide-react';
 
 const RARITY_BG: Record<string, string> = {
   common: 'bg-gray-500/20 border-gray-500/50',
   rare: 'bg-blue-500/20 border-blue-500/50',
   epic: 'bg-purple-500/20 border-purple-500/50',
+};
+
+const THEME_COLORS: Record<string, string> = {
+  dungeon: '#8B7355',
+  jungle: '#228B22',
+  abyss: '#4B0082',
+  dragon_nest: '#B22222',
+  void: '#1a1a2e',
+};
+
+const THEME_NAMES: Record<string, string> = {
+  dungeon: '石砌地牢',
+  jungle: '翠绿丛林',
+  abyss: '幽暗深渊',
+  dragon_nest: '烈焰龙巢',
+  void: '虚空裂隙',
+};
+
+const THEME_ICONS: Record<string, string> = {
+  dungeon: '🏰',
+  jungle: '🌳',
+  abyss: '🕳️',
+  dragon_nest: '🐲',
+  void: '🌌',
 };
 
 export const TowerPage: React.FC = () => {
@@ -27,6 +51,15 @@ export const TowerPage: React.FC = () => {
     bossKills,
     battleStatus,
     activeDebuffs,
+    currentTheme,
+    showNarrative,
+    narrativePhase,
+    currentNarrativeText,
+    currentNarrativeTitle,
+    currentBranchChoices,
+    currentNarrativeChoices,
+    narrativeResultText,
+    currentCampNarrative,
     init,
     startRun,
     prepareBattle,
@@ -39,10 +72,15 @@ export const TowerPage: React.FC = () => {
     handleDefeat,
     exitTower,
     hasBlessing,
+    proceedFromNarrative,
+    makeBranchChoice,
+    makeNarrativeChoice,
+    showCampNarrative,
   } = useTowerStore();
 
   const [shopBlessings, setShopBlessings] = useState<TowerBlessing[]>([]);
   const [showBlessingCodex, setShowBlessingCodex] = useState(false);
+  const [showCampShop, setShowCampShop] = useState(false);
 
   useEffect(() => {
     init();
@@ -51,20 +89,13 @@ export const TowerPage: React.FC = () => {
   useEffect(() => {
     if (battleStatus === 'camp') {
       setShopBlessings(getShopBlessings());
+      setShowCampShop(false);
     }
   }, [battleStatus, getShopBlessings]);
 
   const handleStartBattle = () => {
     prepareBattle();
     navigate(`/tower/battle/${currentFloor}`);
-  };
-
-  const handleFloorVictory = () => {
-    completeFloor();
-  };
-
-  const handleFloorDefeat = () => {
-    handleDefeat();
   };
 
   const handleRest = () => {
@@ -80,8 +111,7 @@ export const TowerPage: React.FC = () => {
 
   const handleRemoveDebuff = (debuffType: TowerDebuffType) => {
     const cost = 50;
-    if (removeDebuff(debuffType, cost)) {
-    }
+    removeDebuff(debuffType, cost);
   };
 
   const renderBlessingIcon = (type: string) => {
@@ -113,6 +143,79 @@ export const TowerPage: React.FC = () => {
     });
   };
 
+  const themeColor = THEME_COLORS[currentTheme] || '#8B7355';
+  const themeName = THEME_NAMES[currentTheme] || '未知';
+  const themeIcon = THEME_ICONS[currentTheme] || '🏰';
+
+  if (showNarrative && narrativePhase) {
+    return (
+      <div className="min-h-screen w-full overflow-auto p-8 flex items-center justify-center">
+        <div className="game-card p-8 max-w-2xl w-full text-center" style={{ borderColor: themeColor + '80' }}>
+          <div className="text-4xl mb-2">{themeIcon}</div>
+          <h2 className="text-2xl font-bold mb-6 font-display" style={{ color: themeColor }}>
+            {currentNarrativeTitle}
+          </h2>
+          <p className="text-gray-300 text-lg leading-relaxed mb-6 whitespace-pre-line">
+            {currentNarrativeText}
+          </p>
+          
+          {narrativeResultText && (
+            <div className="bg-game-bg-dark rounded-lg p-4 mb-6 border border-game-gold/30">
+              <p className="text-game-gold">{narrativeResultText}</p>
+            </div>
+          )}
+
+          {currentNarrativeChoices.length > 0 && !narrativeResultText && (
+            <div className="space-y-3 mb-6">
+              {currentNarrativeChoices.map((choice) => (
+                <button
+                  key={choice.id}
+                  onClick={() => makeNarrativeChoice(choice)}
+                  className="w-full p-4 rounded-lg border-2 bg-game-bg-dark border-game-gold/30 hover:border-game-gold/60 hover:bg-game-gold/10 transition-colors text-left flex items-center gap-3"
+                >
+                  <span className="text-2xl">{choice.icon}</span>
+                  <div className="flex-1">
+                    <div className="font-bold text-white">{choice.text}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {currentBranchChoices.length > 0 && (
+            <div className="space-y-3 mb-6">
+              <h3 className="text-lg font-bold text-game-gold mb-3">做出你的选择</h3>
+              {currentBranchChoices.map((choice) => (
+                <button
+                  key={choice.id}
+                  onClick={() => makeBranchChoice(choice)}
+                  className="w-full p-4 rounded-lg border-2 bg-game-bg-dark hover:bg-game-gold/10 transition-colors text-left"
+                  style={{ borderColor: themeColor + '50' }}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-2xl">{choice.icon}</span>
+                    <span className="font-bold text-white">{choice.name}</span>
+                  </div>
+                  <p className="text-sm text-gray-400 ml-9">{choice.description}</p>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {(!currentNarrativeChoices.length || narrativeResultText) && !currentBranchChoices.length && (
+            <button
+              onClick={proceedFromNarrative}
+              className="game-button-primary px-8 py-3"
+            >
+              {narrativePhase === 'boss_intro' ? '开始战斗' : 
+               narrativePhase === 'boss_victory' ? '继续' : '继续'}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   if (!isInTower) {
     return (
       <div className="min-h-screen w-full overflow-auto p-8">
@@ -126,11 +229,26 @@ export const TowerPage: React.FC = () => {
               <Mountain size={48} className="text-game-gold animate-pulse" />
             </div>
             <p className="text-xl text-gray-400 mb-2">
-              Roguelike 爬塔模式
+              Roguelike 五段式主题爬塔
             </p>
             <p className="text-gray-500">
-              挑战50层秘境，收集祝福，击败BOSS！
+              地牢 → 丛林 → 深渊 → 龙巢 → 虚空，每段10层，挑战50层秘境！
             </p>
+          </div>
+
+          <div className="game-card p-6 mb-8">
+            <h2 className="text-xl font-bold text-game-gold mb-4 font-display">
+              五段主题
+            </h2>
+            <div className="grid grid-cols-5 gap-3">
+              {TOWER_THEMES.map((t, i) => (
+                <div key={t.type} className="bg-game-bg-dark rounded-lg p-3 text-center border-2" style={{ borderColor: t.color + '60' }}>
+                  <div className="text-2xl mb-1">{t.icon}</div>
+                  <div className="text-xs font-bold text-white">{t.name}</div>
+                  <div className="text-xs text-gray-500">{t.startFloor}-{t.endFloor}F</div>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="game-card p-6 mb-8">
@@ -184,20 +302,20 @@ export const TowerPage: React.FC = () => {
             </h2>
             <div className="space-y-3 text-gray-300">
               <div className="flex items-start gap-3">
-                <span className="text-2xl">🎯</span>
-                <p>共 <span className="text-game-gold font-bold">{TOWER_TOTAL_FLOORS}</span> 层，每层随机生成敌人、负面效果和祝福</p>
+                <span className="text-2xl">🏰🌳🕳️🐲🌌</span>
+                <p>五段主题，每段 <span className="text-game-gold font-bold">10</span> 层，敌人风格与 debuff 随主题变化</p>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">⚔️</span>
+                <p>每段第 <span className="text-game-gold font-bold">5</span> 层遭遇精英敌人，第 <span className="text-game-gold font-bold">10</span> 层挑战主题BOSS</p>
               </div>
               <div className="flex items-start gap-3">
                 <span className="text-2xl">🏕️</span>
-                <p>每通过 <span className="text-game-gold font-bold">3</span> 层出现营地，可购买祝福或恢复生命</p>
+                <p>营地休息触发故事事件，你的选择将影响后续冒险走向</p>
               </div>
               <div className="flex items-start gap-3">
-                <span className="text-2xl">👹</span>
-                <p>每 <span className="text-game-gold font-bold">10</span> 层设置精英守关BOSS，挑战难度更高</p>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="text-2xl">💀</span>
-                <p>失败后需从第一层重新开始，但保留已解锁的祝福图鉴</p>
+                <span className="text-2xl">📖</span>
+                <p>分支叙事系统，不同选择导向不同结局，收集全部8种结局！</p>
               </div>
             </div>
           </div>
@@ -275,16 +393,17 @@ export const TowerPage: React.FC = () => {
   }
 
   if (battleStatus === 'camp') {
+    const hasCampNarrative = currentFloorData?.campNarrative;
+    
     return (
       <div className="min-h-screen w-full overflow-auto p-8">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-8">
             <div className="flex items-center justify-center gap-4 mb-4">
-              <Tent size={48} className="text-green-400" />
-              <h1 className="text-4xl font-bold text-green-400 font-display">
-                营地休息
+              <Tent size={48} style={{ color: themeColor }} />
+              <h1 className="text-4xl font-bold font-display" style={{ color: themeColor }}>
+                {themeIcon} {themeName} · 营地休息
               </h1>
-              <Tent size={48} className="text-green-400" />
             </div>
             <p className="text-gray-400">
               第 {currentFloor} 层 · 休整一下继续前进
@@ -322,14 +441,55 @@ export const TowerPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="game-card p-6 mb-6">
-            <h2 className="text-xl font-bold text-game-gold mb-4 font-display">
-              休息恢复
-            </h2>
+          {hasCampNarrative && !showCampShop && (
+            <div className="game-card p-6 mb-6" style={{ borderColor: themeColor + '40' }}>
+              <div className="flex items-center gap-3 mb-4">
+                <Scroll size={24} style={{ color: themeColor }} />
+                <h2 className="text-xl font-bold font-display" style={{ color: themeColor }}>
+                  {currentFloorData!.campNarrative!.title}
+                </h2>
+              </div>
+              {currentFloorData!.campNarrative!.npcName && (
+                <div className="flex items-center gap-2 mb-3 bg-game-bg-dark rounded-lg p-3">
+                  <span className="text-2xl">{currentFloorData!.campNarrative!.npcSprite || '👤'}</span>
+                  <span className="font-bold text-white">{currentFloorData!.campNarrative!.npcName}</span>
+                </div>
+              )}
+              <p className="text-gray-300 leading-relaxed mb-6 whitespace-pre-line">
+                {currentFloorData!.campNarrative!.text}
+              </p>
+              {currentFloorData!.campNarrative!.choices.length > 0 && (
+                <div className="space-y-3 mb-4">
+                  {currentFloorData!.campNarrative!.choices.map((choice) => (
+                    <button
+                      key={choice.id}
+                      onClick={() => {
+                        makeNarrativeChoice(choice);
+                      }}
+                      className="w-full p-4 rounded-lg border-2 bg-game-bg-dark hover:bg-game-gold/10 transition-colors text-left flex items-center gap-3"
+                      style={{ borderColor: themeColor + '40' }}
+                    >
+                      <span className="text-2xl">{choice.icon}</span>
+                      <div className="flex-1">
+                        <div className="font-bold text-white">{choice.text}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {narrativeResultText && (
+                <div className="bg-game-bg-dark rounded-lg p-4 mb-4 border border-game-gold/30">
+                  <p className="text-game-gold">{narrativeResultText}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="grid md:grid-cols-2 gap-4 mb-6">
             <button
               onClick={handleRest}
               disabled={gold < 30 || playerHp >= playerMaxHp}
-              className={`w-full p-4 rounded-lg border-2 flex items-center justify-between ${
+              className={`p-4 rounded-lg border-2 flex items-center justify-between ${
                 gold >= 30 && playerHp < playerMaxHp
                   ? 'bg-green-500/20 border-green-500/50 hover:bg-green-500/30 cursor-pointer'
                   : 'bg-gray-700/30 border-gray-600 cursor-not-allowed opacity-50'
@@ -347,7 +507,74 @@ export const TowerPage: React.FC = () => {
                 <span>30</span>
               </div>
             </button>
+            <button
+              onClick={() => setShowCampShop(!showCampShop)}
+              className="p-4 rounded-lg border-2 bg-purple-500/20 border-purple-500/50 hover:bg-purple-500/30 cursor-pointer flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">🛒</span>
+                <div className="text-left">
+                  <div className="font-bold text-white">祝福商店</div>
+                  <div className="text-sm text-gray-400">购买强力祝福</div>
+                </div>
+              </div>
+              <Sparkles size={20} className="text-purple-400" />
+            </button>
           </div>
+
+          {showCampShop && (
+            <div className="game-card p-6 mb-6">
+              <h2 className="text-xl font-bold text-game-gold mb-4 font-display">
+                祝福商店
+              </h2>
+              <div className="grid md:grid-cols-3 gap-4">
+                {shopBlessings.map(blessing => {
+                  const alreadyOwned = currentBlessings.includes(blessing.type);
+                  const canAfford = gold >= blessing.cost;
+                  return (
+                    <div
+                      key={blessing.type}
+                      className={`p-4 rounded-lg border-2 ${RARITY_BG[blessing.rarity]} ${
+                        !alreadyOwned && canAfford ? 'cursor-pointer hover:scale-105 transition-transform' : 'opacity-60'
+                      }`}
+                      onClick={() => !alreadyOwned && canAfford && handleBuyBlessing(blessing)}
+                    >
+                      <div className="text-center mb-3">
+                        <span className="text-4xl">{blessing.icon}</span>
+                      </div>
+                      <div className="text-center mb-2">
+                        <span
+                          className="text-xs px-2 py-0.5 rounded"
+                          style={{
+                            backgroundColor: QUALITY_COLORS[blessing.rarity] + '30',
+                            color: QUALITY_COLORS[blessing.rarity],
+                          }}
+                        >
+                          {QUALITY_NAMES[blessing.rarity as keyof typeof QUALITY_NAMES]}
+                        </span>
+                      </div>
+                      <div className="font-bold text-white text-center mb-2">
+                        {blessing.name}
+                      </div>
+                      <p className="text-xs text-gray-400 text-center mb-3">
+                        {blessing.description}
+                      </p>
+                      <div className="flex items-center justify-center gap-1 text-game-gold">
+                        {alreadyOwned ? (
+                          <span className="text-green-400">已拥有</span>
+                        ) : (
+                          <>
+                            <Coins size={14} />
+                            <span>{blessing.cost}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {getUniqueDebuffs().length > 0 && (
             <div className="game-card p-6 mb-6">
@@ -385,58 +612,6 @@ export const TowerPage: React.FC = () => {
               </div>
             </div>
           )}
-
-          <div className="game-card p-6 mb-6">
-            <h2 className="text-xl font-bold text-game-gold mb-4 font-display">
-              祝福商店
-            </h2>
-            <div className="grid md:grid-cols-3 gap-4">
-              {shopBlessings.map(blessing => {
-                const alreadyOwned = currentBlessings.includes(blessing.type);
-                const canAfford = gold >= blessing.cost;
-                return (
-                  <div
-                    key={blessing.type}
-                    className={`p-4 rounded-lg border-2 ${RARITY_BG[blessing.rarity]} ${
-                      !alreadyOwned && canAfford ? 'cursor-pointer hover:scale-105 transition-transform' : 'opacity-60'
-                    }`}
-                    onClick={() => !alreadyOwned && canAfford && handleBuyBlessing(blessing)}
-                  >
-                    <div className="text-center mb-3">
-                      <span className="text-4xl">{blessing.icon}</span>
-                    </div>
-                    <div className="text-center mb-2">
-                      <span
-                        className="text-xs px-2 py-0.5 rounded"
-                        style={{
-                          backgroundColor: QUALITY_COLORS[blessing.rarity] + '30',
-                          color: QUALITY_COLORS[blessing.rarity],
-                        }}
-                      >
-                        {QUALITY_NAMES[blessing.rarity as keyof typeof QUALITY_NAMES]}
-                      </span>
-                    </div>
-                    <div className="font-bold text-white text-center mb-2">
-                      {blessing.name}
-                    </div>
-                    <p className="text-xs text-gray-400 text-center mb-3">
-                      {blessing.description}
-                    </p>
-                    <div className="flex items-center justify-center gap-1 text-game-gold">
-                      {alreadyOwned ? (
-                        <span className="text-green-400">已拥有</span>
-                      ) : (
-                        <>
-                          <Coins size={14} />
-                          <span>{blessing.cost}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
 
           {currentBlessings.length > 0 && (
             <div className="game-card p-6 mb-6">
@@ -553,14 +728,25 @@ export const TowerPage: React.FC = () => {
             <h1 className="text-4xl font-bold text-game-gold font-display">
               大秘境 第 {currentFloor} 层
             </h1>
-            <Mountain size={48} className="text-game-gold" />
           </div>
-          {currentFloorData?.isBoss && (
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 font-bold">
-              <Castle size={20} />
-              <span>BOSS 战！</span>
+          <div className="flex items-center justify-center gap-3">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold" style={{ backgroundColor: themeColor + '20', color: themeColor, border: `1px solid ${themeColor}50` }}>
+              <span>{themeIcon}</span>
+              <span>{themeName}</span>
             </div>
-          )}
+            {currentFloorData?.isBoss && (
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 font-bold">
+                <Castle size={20} />
+                <span>BOSS 战！</span>
+              </div>
+            )}
+            {currentFloorData?.isElite && (
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-500/20 border border-purple-500/50 rounded-lg text-purple-400 font-bold">
+                <Swords size={20} />
+                <span>精英战！</span>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="game-card p-6 mb-6">
@@ -677,7 +863,7 @@ export const TowerPage: React.FC = () => {
             className="w-full game-button-primary text-lg py-4 flex items-center justify-center gap-2"
           >
             <Play size={24} />
-            <span>开始战斗</span>
+            <span>{currentFloorData?.isBoss ? '挑战BOSS' : currentFloorData?.isElite ? '挑战精英' : '开始战斗'}</span>
           </button>
           <button
             onClick={exitTower}

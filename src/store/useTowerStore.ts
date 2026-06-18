@@ -7,7 +7,19 @@ import type {
   TowerBlessing, 
   TowerBlessingType,
   TowerDebuffType,
-  SpecialTileConfig
+  SpecialTileConfig,
+  TowerThemeType,
+  TowerTheme,
+  TowerBranchChoiceType,
+  TowerBranchChoice,
+  TowerBranchEffect,
+  TowerEnding,
+  TowerEndingType,
+  TowerNarrative,
+  TowerFloorNarrative,
+  TowerFloorNarrativeEvent,
+  TowerCampStoryEvent,
+  TowerNarrativeChoice,
 } from '../types';
 import { 
   TOWER_DEBUFFS, 
@@ -15,10 +27,17 @@ import {
   TOWER_TOTAL_FLOORS, 
   TOWER_CAMP_INTERVAL, 
   TOWER_BOSS_INTERVAL,
+  TOWER_THEME_INTERVAL,
+  TOWER_THEMES,
+  TOWER_NARRATIVES,
+  TOWER_ENDINGS,
+  getThemeForFloor,
+  getNarrativeForTheme,
   DEFAULT_BEHAVIOR_STATE,
-  BLESSING_RARITY_WEIGHTS
+  BLESSING_RARITY_WEIGHTS,
 } from '../types';
-import towerEnemiesData from '../data/towerEnemies.json';
+import towerThemeEnemiesData from '../data/towerThemeEnemies.json';
+import towerFloorNarrativesData from '../data/towerFloorNarratives.json';
 import {
   loadTowerSave,
   saveTowerSave,
@@ -28,7 +47,9 @@ import {
 } from '../utils/localStorage';
 import { useAchievementStore } from './useAchievementStore';
 
-const towerEnemies = towerEnemiesData as Array<Omit<Enemy, 'type' | 'currentHp' | 'currentAttackIndex' | 'behaviorState' | 'behaviorLogs' | 'statusEffects' | 'isTargetable' | 'isSelected'>>;
+const towerThemeEnemies = towerThemeEnemiesData as Array<Omit<Enemy, 'type' | 'currentHp' | 'currentAttackIndex' | 'behaviorState' | 'behaviorLogs' | 'statusEffects' | 'isTargetable' | 'isSelected'> & { theme: TowerThemeType; enemyType: string }>;
+
+const floorNarratives = towerFloorNarrativesData as TowerFloorNarrative[];
 
 const pickRandom = <T>(arr: T[], count: number): T[] => {
   const shuffled = [...arr].sort(() => Math.random() - 0.5);
@@ -59,25 +80,53 @@ const pickWeightedBlessing = (weights: [number, number, number]): TowerBlessing 
   return filtered[Math.floor(Math.random() * filtered.length)];
 };
 
+interface BranchEffectState {
+  critChance: number;
+  regenPerTurn: number;
+  goldMultiplier: number;
+  damageMultiplier: number;
+  difficultyMultiplier: number;
+  energyGain: number;
+  companion: string | null;
+  debuffImmune: TowerDebuffType[];
+}
+
+const DEFAULT_BRANCH_EFFECTS: BranchEffectState = {
+  critChance: 0,
+  regenPerTurn: 0,
+  goldMultiplier: 0,
+  damageMultiplier: 0,
+  difficultyMultiplier: 0,
+  energyGain: 0,
+  companion: null,
+  debuffImmune: [],
+};
+
+const MAX_CONSECUTIVE_SAME_DEBUFF = 2;
+
 const createEnemyFromTowerData = (
-  enemyData: typeof towerEnemies[0], 
+  enemyData: typeof towerThemeEnemies[0], 
   floor: number, 
   isBoss: boolean,
-  isEnraged: boolean
+  isElite: boolean,
+  isEnraged: boolean,
+  difficultyMultiplier: number = 0
 ): Enemy => {
   const scaleFactor = 1 + (floor - 1) * 0.08;
   const bossScale = isBoss ? 1.5 : 1;
+  const eliteScale = isElite ? 1.25 : 1;
   const enrageScale = isEnraged ? 1.3 : 1;
+  const diffScale = 1 + difficultyMultiplier;
   
   return {
     ...enemyData,
     id: `${enemyData.id}_${floor}_${Date.now()}`,
     type: 'enemy',
-    maxHp: Math.floor(enemyData.maxHp * scaleFactor * bossScale),
-    currentHp: Math.floor(enemyData.maxHp * scaleFactor * bossScale),
-    attack: Math.floor(enemyData.attack * scaleFactor * bossScale * enrageScale),
+    maxHp: Math.floor(enemyData.maxHp * scaleFactor * bossScale * eliteScale * diffScale),
+    currentHp: Math.floor(enemyData.maxHp * scaleFactor * bossScale * eliteScale * diffScale),
+    attack: Math.floor(enemyData.attack * scaleFactor * bossScale * eliteScale * enrageScale * diffScale),
     attackPattern: enemyData.attackPattern.map(dmg => 
-      Math.floor(dmg * scaleFactor * bossScale * enrageScale)
+      Math.floor(dmg * scaleFactor * bossScale * eliteScale * enrageScale * diffScale)
     ),
     currentAttackIndex: 0,
     statusEffects: [],
@@ -88,42 +137,125 @@ const createEnemyFromTowerData = (
   };
 };
 
-const MAX_CONSECUTIVE_SAME_DEBUFF = 2;
+const getEnemiesForTheme = (theme: TowerThemeType, includeBoss: boolean = false, includeElite: boolean = false) => {
+  return towerThemeEnemies.filter(e => {
+    const isBoss = e.id.startsWith('boss_');
+    const isElite = e.id.startsWith('elite_');
+    if (e.theme !== theme) return false;
+    if (isBoss) return includeBoss;
+    if (isElite) return includeElite;
+    return !includeBoss && !includeElite;
+  });
+};
+
+const getNarrativeForFloor = (theme: TowerThemeType, floorInTheme: number): TowerFloorNarrative | undefined => {
+  return floorNarratives.find(n => n.theme === theme && n.floorInTheme === floorInTheme);
+};
+
+const getFloorInTheme = (floor: number): number => {
+  const theme = getThemeForFloor(floor);
+  return floor - theme.startFloor + 1;
+};
+
+const getCampIndexInTheme = (floor: number): number => {
+  const theme = getThemeForFloor(floor);
+  const floorInTheme = floor - theme.startFloor + 1;
+  const campFloorsInTheme: number[] = [];
+  for (let f = 1; f <= 10; f++) {
+    const globalFloor = theme.startFloor + f - 1;
+    const isBoss = globalFloor % TOWER_BOSS_INTERVAL === 0;
+    const isCamp = !isBoss && globalFloor > 1 && (globalFloor - 1) % TOWER_CAMP_INTERVAL === 0;
+    if (isCamp) campFloorsInTheme.push(f);
+  }
+  return campFloorsInTheme.indexOf(floorInTheme);
+};
+
+const getDebuffPoolForTheme = (theme: TowerTheme, hasEnrageBlessing: boolean): TowerDebuff[] => {
+  let pool = TOWER_DEBUFFS;
+  
+  if (!hasEnrageBlessing) {
+    pool = pool.filter(d => d.type !== 'enrage_enemy');
+  }
+  
+  if (theme.bannedElements && theme.bannedElements.length > 0) {
+    const bannedDebuffs = theme.bannedElements.map(el => `no_${el}_rune` as TowerDebuffType);
+    pool = pool.filter(d => !bannedDebuffs.includes(d.type));
+  }
+  
+  const charDebuffs = theme.characteristicDebuffs;
+  const charWeight = 2;
+  const weightedPool: TowerDebuff[] = [];
+  
+  pool.forEach(d => {
+    weightedPool.push(d);
+    if (charDebuffs.includes(d.type)) {
+      for (let i = 1; i < charWeight; i++) {
+        weightedPool.push(d);
+      }
+    }
+  });
+  
+  return weightedPool;
+};
 
 const generateFloor = (
   floor: number, 
   playerBlessings: TowerBlessingType[],
-  consecutiveDebuffTypes: TowerDebuffType[] = []
+  consecutiveDebuffTypes: TowerDebuffType[] = [],
+  branchEffects: BranchEffectState = DEFAULT_BRANCH_EFFECTS
 ): TowerFloor => {
   const isBoss = floor % TOWER_BOSS_INTERVAL === 0;
   const isCamp = !isBoss && floor > 1 && (floor - 1) % TOWER_CAMP_INTERVAL === 0;
+  const isThemeTransition = floor > 1 && (floor - 1) % TOWER_THEME_INTERVAL === 0;
+  
+  const theme = getThemeForFloor(floor);
+  const isBranchCamp = isCamp && isThemeTransition;
+  const floorInTheme = getFloorInTheme(floor);
+  
+  const narrative = getNarrativeForFloor(theme.type, floorInTheme);
   
   if (isCamp) {
+    let campNarrative: TowerCampStoryEvent | undefined;
+    if (narrative && narrative.campEvents && narrative.campEvents.length > 0) {
+      const campIndex = getCampIndexInTheme(floor);
+      campNarrative = narrative.campEvents.find(ce => ce.campIndex === campIndex) || narrative.campEvents[0];
+    }
+    
     return {
       floor,
       enemy: null as unknown as Enemy,
       debuffs: [],
-      blessings: [],
+      floorBlessings: [],
       isBoss: false,
       isCamp: true,
+      isBranchCamp,
+      theme: theme.type,
       goldReward: 0,
+      campNarrative,
     };
   }
   
-  let enemyPool = towerEnemies.filter(e => !e.id.startsWith('boss_'));
+  const isElite = !isBoss && floorInTheme === 5;
+  
+  const normalPool = getEnemiesForTheme(theme.type, false, false);
+  const elitePool = getEnemiesForTheme(theme.type, false, true);
+  const bossPool = getEnemiesForTheme(theme.type, true, false);
+  
+  let enemyData: typeof towerThemeEnemies[0];
+  
   if (isBoss) {
-    const bossPool = towerEnemies.filter(e => e.id.startsWith('boss_'));
-    const bossIndex = Math.min(Math.floor(floor / TOWER_BOSS_INTERVAL) - 1, bossPool.length - 1);
-    enemyPool = [bossPool[bossIndex]];
+    enemyData = bossPool[0];
+  } else if (isElite && elitePool.length > 0) {
+    enemyData = elitePool[0];
+  } else {
+    enemyData = normalPool[Math.floor(Math.random() * normalPool.length)];
   }
   
-  const enemyData = enemyPool[Math.floor(Math.random() * enemyPool.length)];
-  const debuffCount = isBoss ? 2 : Math.min(1 + Math.floor(floor / 15), 3);
+  const debuffCount = isBoss ? 2 : isElite ? 2 : Math.min(1 + Math.floor(floor / 15), 3);
+  const hasEnrageBlessing = playerBlessings.includes('thorns');
+  let debuffPool = getDebuffPoolForTheme(theme, hasEnrageBlessing);
   
-  const hasEnrageDebuff = playerBlessings.includes('thorns');
-  let debuffPool = hasEnrageDebuff 
-    ? TOWER_DEBUFFS 
-    : TOWER_DEBUFFS.filter(d => d.type !== 'enrage_enemy');
+  debuffPool = debuffPool.filter(d => !branchEffects.debuffImmune.includes(d.type));
   
   const recentDebuffCounts: Record<string, number> = {};
   consecutiveDebuffTypes.forEach(type => {
@@ -136,47 +268,78 @@ const generateFloor = (
   });
   
   if (debuffPool.length === 0) {
-    debuffPool = hasEnrageDebuff 
-      ? TOWER_DEBUFFS 
-      : TOWER_DEBUFFS.filter(d => d.type !== 'enrage_enemy');
+    debuffPool = getDebuffPoolForTheme(theme, hasEnrageBlessing);
+    debuffPool = debuffPool.filter(d => !branchEffects.debuffImmune.includes(d.type));
   }
   
   const selectedDebuffs = pickRandom(debuffPool, Math.min(debuffCount, debuffPool.length));
-  const isEnraged = selectedDebuffs.some(d => d.type === 'enrage_enemy');
+  const uniqueDebuffs = Array.from(new Map(selectedDebuffs.map(d => [d.type, d])).values());
+  const isEnraged = uniqueDebuffs.some(d => d.type === 'enrage_enemy');
   
-  const enemy = createEnemyFromTowerData(enemyData, floor, isBoss, isEnraged);
+  const enemy = createEnemyFromTowerData(enemyData, floor, isBoss, isElite, isEnraged, branchEffects.difficultyMultiplier);
   
   const floorBlessings: TowerBlessing[] = [];
-  if (!isBoss && Math.random() < 0.3) {
+  if (!isBoss && !isElite && Math.random() < 0.3) {
+    floorBlessings.push(pickWeightedBlessing(BLESSING_RARITY_WEIGHTS.floor));
+  }
+  if (isElite && Math.random() < 0.6) {
     floorBlessings.push(pickWeightedBlessing(BLESSING_RARITY_WEIGHTS.floor));
   }
   
-  const baseGold = isBoss ? 150 : 30;
-  const goldReward = Math.floor(baseGold * (1 + floor * 0.1));
+  const baseGold = isBoss ? 150 : isElite ? 80 : 30;
+  const goldReward = Math.floor(baseGold * (1 + floor * 0.1) * (1 + branchEffects.goldMultiplier));
+  
+  let narrativeEvent: TowerFloorNarrativeEvent | undefined;
+  let victoryEvent: TowerFloorNarrativeEvent | undefined;
+  if (narrative) {
+    if (isElite && narrative.enterEvent) {
+      narrativeEvent = { ...narrative.enterEvent, type: 'elite_encounter' };
+    } else if (narrative.enterEvent) {
+      narrativeEvent = narrative.enterEvent;
+    }
+    if (isBoss && narrative.victoryEvent) {
+      victoryEvent = narrative.victoryEvent;
+    }
+  }
   
   return {
     floor,
     enemy,
-    debuffs: selectedDebuffs,
-    blessings: floorBlessings,
+    debuffs: uniqueDebuffs,
+    floorBlessings,
     isBoss,
+    isElite,
     isCamp: false,
+    isBranchCamp: false,
+    theme: theme.type,
     goldReward,
+    narrativeEvent,
+    victoryEvent,
   };
 };
 
 const getSpecialTilesFromDebuffs = (debuffs: TowerDebuff[]): Partial<SpecialTileConfig> & { excludedElements?: string[] } => {
   const excludedElements: string[] = [];
+  let obstacle = 0;
+  let frozen = 0;
+  let doubleEnergy = 0;
   
   if (debuffs.some(d => d.type === 'no_fire_rune')) excludedElements.push('fire');
   if (debuffs.some(d => d.type === 'no_water_rune')) excludedElements.push('water');
   if (debuffs.some(d => d.type === 'no_grass_rune')) excludedElements.push('grass');
   if (debuffs.some(d => d.type === 'no_thunder_rune')) excludedElements.push('thunder');
+  if (debuffs.some(d => d.type === 'darkness_veil')) excludedElements.push('thunder');
+  
+  if (debuffs.some(d => d.type === 'vines_entangle')) frozen += 2;
+  if (debuffs.some(d => d.type === 'void_corruption')) {
+    const elements = ['fire', 'water', 'grass', 'thunder'];
+    excludedElements.push(elements[Math.floor(Math.random() * elements.length)]);
+  }
   
   return {
-    obstacle: 0,
-    frozen: 0,
-    doubleEnergy: 0,
+    obstacle,
+    frozen,
+    doubleEnergy,
     excludedElements,
   };
 };
@@ -189,7 +352,57 @@ const getMaxEnergyFromDebuffs = (debuffs: TowerDebuff[]): number => {
   return debuffs.some(d => d.type === 'half_energy') ? 5 : 10;
 };
 
-export const useTowerStore = create<TowerStore>((set, get) => ({
+const determineEnding = (choices: TowerBranchChoiceType[]): TowerEnding | null => {
+  for (const ending of TOWER_ENDINGS) {
+    const meetsRequired = ending.requiredChoices.every(c => choices.includes(c));
+    const noForbidden = !ending.forbiddenChoices || !ending.forbiddenChoices.some(c => choices.includes(c));
+    
+    if (meetsRequired && noForbidden) {
+      return ending;
+    }
+  }
+  return null;
+};
+
+interface ExtendedTowerState {
+  currentTheme: TowerThemeType;
+  branchChoices: TowerBranchChoiceType[];
+  branchEffects: BranchEffectState;
+  branchChoicesMade: boolean[];
+  currentEnding: TowerEnding | null;
+  showNarrative: boolean;
+  narrativePhase: 'intro' | 'branch' | 'boss_intro' | 'boss_victory' | 'floor_event' | 'camp_story' | 'elite_intro' | null;
+  currentNarrativeText: string;
+  currentNarrativeTitle: string;
+  currentBranchChoices: TowerBranchChoice[];
+  currentNarrativeChoices: TowerNarrativeChoice[];
+  triggeredNarrativeEvents: string[];
+  currentCampNarrative: TowerCampStoryEvent | null;
+  narrativeResultText: string;
+}
+
+interface ExtendedTowerActions {
+  getCurrentTheme: () => TowerTheme;
+  getCurrentNarrative: () => TowerNarrative;
+  makeBranchChoice: (choice: TowerBranchChoice) => void;
+  makeNarrativeChoice: (choice: TowerNarrativeChoice) => void;
+  applyBranchEffect: (effect: TowerBranchEffect) => void;
+  calculateDamage: (baseDamage: number) => number;
+  getEnding: () => TowerEnding | null;
+  proceedFromNarrative: () => void;
+  showThemeIntro: () => void;
+  showBossIntro: () => void;
+  showBossVictory: () => void;
+  showVictoryNarrative: (event: TowerFloorNarrativeEvent) => void;
+  showFloorNarrative: (event: TowerFloorNarrativeEvent) => void;
+  showCampNarrative: (event: TowerCampStoryEvent) => void;
+  getBranchChoicesForCurrentCamp: () => TowerBranchChoice[];
+  hasMadeChoiceForTheme: (themeIndex: number) => boolean;
+  getCritChance: () => number;
+  getRegenPerTurn: () => number;
+}
+
+export const useTowerStore = create<TowerStore & ExtendedTowerState & ExtendedTowerActions>((set, get) => ({
   isInTower: false,
   currentFloor: 1,
   playerHp: 100,
@@ -207,6 +420,21 @@ export const useTowerStore = create<TowerStore>((set, get) => ({
   activeDebuffs: [],
   consecutiveDebuffTypes: [],
   shopBlessings: [],
+  
+  currentTheme: 'dungeon',
+  branchChoices: [],
+  branchEffects: { ...DEFAULT_BRANCH_EFFECTS },
+  branchChoicesMade: [false, false, false, false, false],
+  currentEnding: null,
+  showNarrative: false,
+  narrativePhase: null,
+  currentNarrativeText: '',
+  currentNarrativeTitle: '',
+  currentBranchChoices: [],
+  currentNarrativeChoices: [],
+  triggeredNarrativeEvents: [],
+  currentCampNarrative: null,
+  narrativeResultText: '',
 
   init: () => {
     const saveData = loadTowerSave();
@@ -218,15 +446,27 @@ export const useTowerStore = create<TowerStore>((set, get) => ({
     });
   },
 
+  getCurrentTheme: () => {
+    return getThemeForFloor(get().currentFloor);
+  },
+
+  getCurrentNarrative: () => {
+    const theme = get().getCurrentTheme();
+    return getNarrativeForTheme(theme.type);
+  },
+
   startRun: () => {
     const startHp = 100;
     const startBlessings: TowerBlessingType[] = [];
-    const firstFloor = generateFloor(1, startBlessings, []);
+    const firstFloor = generateFloor(1, startBlessings, [], DEFAULT_BRANCH_EFFECTS);
     
     let shield = 0;
     if (startBlessings.includes('start_with_shield')) {
       shield = 15;
     }
+    
+    const theme = getThemeForFloor(1);
+    const narrative = getNarrativeForTheme(theme.type);
     
     set({
       isInTower: true,
@@ -242,14 +482,268 @@ export const useTowerStore = create<TowerStore>((set, get) => ({
       activeDebuffs: firstFloor.debuffs,
       consecutiveDebuffTypes: firstFloor.debuffs.map(d => d.type),
       shopBlessings: [],
+      currentTheme: theme.type,
+      branchChoices: [],
+      branchEffects: { ...DEFAULT_BRANCH_EFFECTS },
+      branchChoicesMade: [false, false, false, false, false],
+      currentEnding: null,
+      showNarrative: true,
+      narrativePhase: 'intro',
+      currentNarrativeText: narrative.introText,
+      currentNarrativeTitle: narrative.title,
+      currentBranchChoices: [],
+      currentNarrativeChoices: [],
+      triggeredNarrativeEvents: [],
+      currentCampNarrative: null,
+      narrativeResultText: '',
     });
   },
+
+  showThemeIntro: () => {
+    const narrative = get().getCurrentNarrative();
+    set({
+      showNarrative: true,
+      narrativePhase: 'intro',
+      currentNarrativeText: narrative.introText,
+      currentNarrativeTitle: narrative.title,
+      currentNarrativeChoices: [],
+      narrativeResultText: '',
+    });
+  },
+
+  showBossIntro: () => {
+    const narrative = get().getCurrentNarrative();
+    set({
+      showNarrative: true,
+      narrativePhase: 'boss_intro',
+      currentNarrativeText: narrative.bossIntro,
+      currentNarrativeTitle: 'BOSS出现',
+      currentNarrativeChoices: [],
+      narrativeResultText: '',
+    });
+  },
+
+  showBossVictory: () => {
+    const narrative = get().getCurrentNarrative();
+    set({
+      showNarrative: true,
+      narrativePhase: 'boss_victory',
+      currentNarrativeText: narrative.bossVictoryText,
+      currentNarrativeTitle: 'BOSS击败',
+      currentNarrativeChoices: [],
+      narrativeResultText: '',
+    });
+  },
+
+  showVictoryNarrative: (event: TowerFloorNarrativeEvent) => {
+    set({
+      showNarrative: true,
+      narrativePhase: 'boss_victory',
+      currentNarrativeText: event.text,
+      currentNarrativeTitle: event.title,
+      currentNarrativeChoices: event.choices || [],
+      narrativeResultText: '',
+    });
+  },
+
+  showFloorNarrative: (event: TowerFloorNarrativeEvent) => {
+    const { triggeredNarrativeEvents } = get();
+    if (triggeredNarrativeEvents.includes(event.id)) return;
+    
+    const phase = event.type === 'elite_encounter' ? 'elite_intro' : 'floor_event';
+    set({
+      showNarrative: true,
+      narrativePhase: phase,
+      currentNarrativeText: event.text,
+      currentNarrativeTitle: event.title,
+      currentNarrativeChoices: event.choices || [],
+      triggeredNarrativeEvents: [...triggeredNarrativeEvents, event.id],
+      narrativeResultText: '',
+    });
+  },
+
+  showCampNarrative: (event: TowerCampStoryEvent) => {
+    set({
+      showNarrative: true,
+      narrativePhase: 'camp_story',
+      currentNarrativeText: event.text,
+      currentNarrativeTitle: event.title,
+      currentNarrativeChoices: event.choices || [],
+      currentCampNarrative: event,
+      narrativeResultText: '',
+    });
+  },
+
+  getBranchChoicesForCurrentCamp: () => {
+    const narrative = get().getCurrentNarrative();
+    return narrative.branchChoices;
+  },
+
+  hasMadeChoiceForTheme: (themeIndex: number) => {
+    return get().branchChoicesMade[themeIndex] || false;
+  },
+
+  proceedFromNarrative: () => {
+    const { narrativePhase, currentFloor, currentFloorData } = get();
+    
+    if (narrativePhase === 'intro') {
+      set({
+        showNarrative: false,
+        narrativePhase: null,
+        narrativeResultText: '',
+      });
+    } else if (narrativePhase === 'boss_intro') {
+      set({
+        showNarrative: false,
+        narrativePhase: null,
+        battleStatus: 'playing',
+        narrativeResultText: '',
+      });
+    } else if (narrativePhase === 'boss_victory') {
+      const themeIndex = Math.floor((currentFloor - 1) / TOWER_THEME_INTERVAL);
+      const narrative = get().getCurrentNarrative();
+      
+      set({
+        showNarrative: true,
+        narrativePhase: 'branch',
+        currentNarrativeText: narrative.campTexts[0] || '',
+        currentNarrativeTitle: narrative.title,
+        currentBranchChoices: narrative.branchChoices,
+        branchChoicesMade: get().branchChoicesMade.map((v, i) => i === themeIndex ? false : v),
+        narrativeResultText: '',
+      });
+    } else if (narrativePhase === 'floor_event' || narrativePhase === 'elite_intro') {
+      set({
+        showNarrative: false,
+        narrativePhase: null,
+        battleStatus: 'playing',
+        narrativeResultText: '',
+      });
+    } else if (narrativePhase === 'camp_story') {
+      set({
+        showNarrative: false,
+        narrativePhase: null,
+        narrativeResultText: '',
+      });
+    }
+  },
+
+  makeBranchChoice: (choice: TowerBranchChoice) => {
+    const { currentFloor, branchChoices, branchChoicesMade } = get();
+    const themeIndex = Math.floor((currentFloor - 1) / TOWER_THEME_INTERVAL);
+    
+    get().applyBranchEffect(choice.effect);
+    
+    if (choice.effect.blessingType && !get().currentBlessings.includes(choice.effect.blessingType)) {
+      set(state => ({
+        currentBlessings: [...state.currentBlessings, choice.effect.blessingType!],
+      }));
+      saveUnlockedBlessing(choice.effect.blessingType);
+    }
+    
+    set({
+      branchChoices: [...branchChoices, choice.id],
+      branchChoicesMade: branchChoicesMade.map((v, i) => i === themeIndex ? true : v),
+      showNarrative: false,
+      narrativePhase: null,
+      battleStatus: 'camp',
+      narrativeResultText: choice.narrativeText,
+    });
+  },
+
+  makeNarrativeChoice: (choice: TowerNarrativeChoice) => {
+    get().applyBranchEffect(choice.effect as TowerBranchEffect);
+    
+    if (choice.effect.blessingType && !get().currentBlessings.includes(choice.effect.blessingType as TowerBlessingType)) {
+      set(state => ({
+        currentBlessings: [...state.currentBlessings, choice.effect.blessingType as TowerBlessingType],
+      }));
+      saveUnlockedBlessing(choice.effect.blessingType as TowerBlessingType);
+    }
+    
+    if (choice.effect.debuffImmune) {
+      set(state => ({
+        branchEffects: {
+          ...state.branchEffects,
+          debuffImmune: [...state.branchEffects.debuffImmune, ...choice.effect.debuffImmune! as TowerDebuffType[]],
+        },
+      }));
+    }
+    
+    set({
+      narrativeResultText: choice.resultText,
+      currentNarrativeChoices: [],
+    });
+  },
+
+  applyBranchEffect: (effect: TowerBranchEffect) => {
+    const { branchEffects, playerMaxHp, playerHp, playerShield } = get();
+    
+    const newEffects = { ...branchEffects };
+    let newMaxHp = playerMaxHp;
+    let newHp = playerHp;
+    let newShield = playerShield;
+    
+    if (effect.playerMaxHp !== undefined) {
+      newMaxHp = Math.max(20, newMaxHp + effect.playerMaxHp);
+      newHp = Math.min(newHp, newMaxHp);
+    }
+    
+    if (effect.playerHp !== undefined) {
+      newHp = Math.max(1, newHp + effect.playerHp);
+    }
+    
+    if (effect.playerShield !== undefined) {
+      newShield = Math.max(0, newShield + effect.playerShield);
+    }
+    
+    if (effect.critChance !== undefined) newEffects.critChance += effect.critChance;
+    if (effect.regenPerTurn !== undefined) newEffects.regenPerTurn += effect.regenPerTurn;
+    if (effect.goldMultiplier !== undefined) newEffects.goldMultiplier += effect.goldMultiplier;
+    if (effect.damageMultiplier !== undefined) newEffects.damageMultiplier += effect.damageMultiplier;
+    if (effect.difficultyMultiplier !== undefined) newEffects.difficultyMultiplier += effect.difficultyMultiplier;
+    if (effect.energyGain !== undefined) newEffects.energyGain += effect.energyGain;
+    if (effect.companion !== undefined) newEffects.companion = effect.companion;
+    if (effect.debuffImmune !== undefined) {
+      newEffects.debuffImmune = [...newEffects.debuffImmune, ...effect.debuffImmune];
+    }
+    
+    set({
+      branchEffects: newEffects,
+      playerMaxHp: newMaxHp,
+      playerHp: newHp,
+      playerShield: newShield,
+    });
+  },
+
+  calculateDamage: (baseDamage: number) => {
+    const { branchEffects } = get();
+    let damage = baseDamage * (1 + branchEffects.damageMultiplier);
+    
+    if (Math.random() * 100 < branchEffects.critChance) {
+      damage *= 1.5;
+    }
+    
+    return Math.floor(damage);
+  },
+
+  getCritChance: () => get().branchEffects.critChance,
+  getRegenPerTurn: () => get().branchEffects.regenPerTurn,
 
   prepareBattle: () => {
     const { currentFloorData } = get();
     if (!currentFloorData || currentFloorData.isCamp) return;
     
-    set({ battleStatus: 'playing' });
+    if (currentFloorData.narrativeEvent) {
+      get().showFloorNarrative(currentFloorData.narrativeEvent);
+      return;
+    }
+    
+    if (currentFloorData.isBoss) {
+      get().showBossIntro();
+    } else {
+      set({ battleStatus: 'playing' });
+    }
   },
 
   getGridSize: () => {
@@ -259,9 +753,10 @@ export const useTowerStore = create<TowerStore>((set, get) => ({
   },
 
   getMaxEnergy: () => {
-    const { currentFloorData } = get();
+    const { currentFloorData, branchEffects } = get();
     if (!currentFloorData) return 10;
-    return getMaxEnergyFromDebuffs(currentFloorData.debuffs);
+    const base = getMaxEnergyFromDebuffs(currentFloorData.debuffs);
+    return base + branchEffects.energyGain;
   },
 
   getSpecialTiles: () => {
@@ -295,7 +790,8 @@ export const useTowerStore = create<TowerStore>((set, get) => ({
 
   healPlayer: (amount: number) => {
     const healMult = get().getHealMultiplier();
-    const actualHeal = Math.floor(amount * healMult);
+    const regenBonus = get().branchEffects.regenPerTurn;
+    const actualHeal = Math.floor((amount + regenBonus) * healMult);
     set(state => ({
       playerHp: Math.min(state.playerMaxHp, state.playerHp + actualHeal),
     }));
@@ -303,10 +799,6 @@ export const useTowerStore = create<TowerStore>((set, get) => ({
 
   damagePlayer: (damage: number) => {
     const actualDamage = get().applyShieldDamage(damage);
-    
-    if (get().hasBlessing('thorns')) {
-      const thornDamage = Math.floor(damage * 0.15);
-    }
     
     set(state => {
       const newHp = Math.max(0, state.playerHp - actualDamage);
@@ -318,7 +810,9 @@ export const useTowerStore = create<TowerStore>((set, get) => ({
   },
 
   gainGold: (amount: number) => {
-    set(state => ({ gold: state.gold + amount }));
+    const { branchEffects } = get();
+    const bonusGold = Math.floor(amount * (1 + branchEffects.goldMultiplier));
+    set(state => ({ gold: state.gold + bonusGold }));
   },
 
   buyBlessing: (blessing: TowerBlessing): boolean => {
@@ -369,8 +863,12 @@ export const useTowerStore = create<TowerStore>((set, get) => ({
     return true;
   },
 
+  getEnding: () => {
+    return determineEnding(get().branchChoices);
+  },
+
   completeFloor: () => {
-    const { currentFloor, currentFloorData, currentBlessings, gold, playerHp, playerMaxHp, playerShield, consecutiveDebuffTypes, activeDebuffs } = get();
+    const { currentFloor, currentFloorData, currentBlessings, gold, playerHp, playerMaxHp, playerShield, consecutiveDebuffTypes, activeDebuffs, branchEffects } = get();
     if (!currentFloorData) return;
     
     try {
@@ -397,13 +895,23 @@ export const useTowerStore = create<TowerStore>((set, get) => ({
     
     if (currentFloorData.isBoss) {
       set(state => ({ bossKills: state.bossKills + 1 }));
+      if (currentFloorData.victoryEvent) {
+        get().showVictoryNarrative(currentFloorData.victoryEvent);
+      } else {
+        get().showBossVictory();
+      }
+      return;
     }
     
     if (currentFloor >= TOWER_TOTAL_FLOORS) {
+      const ending = get().getEnding();
+      const endingGold = ending ? ending.goldBonus : 0;
+      
       set({ 
         battleStatus: 'victory', 
-        gold: newGold,
-        totalGoldEarned: get().totalGoldEarned + newGold,
+        gold: newGold + endingGold,
+        totalGoldEarned: get().totalGoldEarned + newGold + endingGold,
+        currentEnding: ending,
       });
       saveHighestFloor(TOWER_TOTAL_FLOORS);
       clearTowerCurrentRun();
@@ -420,7 +928,7 @@ export const useTowerStore = create<TowerStore>((set, get) => ({
     }
     
     const nextFloor = currentFloor + 1;
-    const nextFloorData = generateFloor(nextFloor, currentBlessings, newConsecutiveDebuffTypes);
+    const nextFloorData = generateFloor(nextFloor, currentBlessings, newConsecutiveDebuffTypes, branchEffects);
     
     let newShield = playerShield;
     if (currentBlessings.includes('start_with_shield') && !nextFloorData.isCamp) {
@@ -432,18 +940,52 @@ export const useTowerStore = create<TowerStore>((set, get) => ({
     }
     
     const newHighestFloor = Math.max(get().highestFloor, nextFloor);
+    const nextTheme = getThemeForFloor(nextFloor).type;
     
-    set({
-      currentFloor: nextFloor,
-      currentFloorData: nextFloorData,
-      gold: newGold,
-      playerShield: newShield,
-      highestFloor: newHighestFloor,
-      battleStatus: nextFloorData.isCamp ? 'camp' : 'preparing',
-      totalGoldEarned: get().totalGoldEarned + currentFloorData.goldReward,
-      activeDebuffs: nextFloorData.debuffs,
-      consecutiveDebuffTypes: nextFloorData.isCamp ? [] : newConsecutiveDebuffTypes,
-    });
+    if (nextFloorData.isBranchCamp) {
+      const narrative = getNarrativeForTheme(nextTheme);
+      const themeIndex = Math.floor((nextFloor - 1) / TOWER_THEME_INTERVAL);
+      const hasMadeChoice = get().hasMadeChoiceForTheme(themeIndex);
+      
+      set({
+        currentFloor: nextFloor,
+        currentFloorData: nextFloorData,
+        gold: newGold,
+        playerShield: newShield,
+        highestFloor: newHighestFloor,
+        currentTheme: nextTheme,
+        totalGoldEarned: get().totalGoldEarned + currentFloorData.goldReward,
+        activeDebuffs: nextFloorData.debuffs,
+        consecutiveDebuffTypes: nextFloorData.isCamp ? [] : newConsecutiveDebuffTypes,
+      });
+      
+      if (!hasMadeChoice) {
+        set({
+          showNarrative: true,
+          narrativePhase: 'intro',
+          currentNarrativeText: narrative.introText,
+          currentNarrativeTitle: narrative.title,
+          battleStatus: 'preparing',
+        });
+      } else {
+        set({
+          battleStatus: 'camp',
+        });
+      }
+    } else {
+      set({
+        currentFloor: nextFloor,
+        currentFloorData: nextFloorData,
+        gold: newGold,
+        playerShield: newShield,
+        highestFloor: newHighestFloor,
+        currentTheme: nextTheme,
+        battleStatus: nextFloorData.isCamp ? 'camp' : 'preparing',
+        totalGoldEarned: get().totalGoldEarned + currentFloorData.goldReward,
+        activeDebuffs: nextFloorData.debuffs,
+        consecutiveDebuffTypes: nextFloorData.isCamp ? [] : newConsecutiveDebuffTypes,
+      });
+    }
     
     saveHighestFloor(newHighestFloor);
     saveTowerSave({
@@ -483,19 +1025,22 @@ export const useTowerStore = create<TowerStore>((set, get) => ({
   },
 
   continueFromCamp: () => {
-    const { currentFloor, currentBlessings } = get();
+    const { currentFloor, currentBlessings, branchEffects } = get();
     const nextFloor = currentFloor + 1;
-    const nextFloorData = generateFloor(nextFloor, currentBlessings);
+    const nextFloorData = generateFloor(nextFloor, currentBlessings, [], branchEffects);
     
     let newShield = get().playerShield;
     if (currentBlessings.includes('start_with_shield')) {
       newShield += 15;
     }
     
+    const nextTheme = getThemeForFloor(nextFloor).type;
+    
     set({
       currentFloor: nextFloor,
       currentFloorData: nextFloorData,
       playerShield: newShield,
+      currentTheme: nextTheme,
       battleStatus: 'preparing',
     });
   },
@@ -514,6 +1059,20 @@ export const useTowerStore = create<TowerStore>((set, get) => ({
       currentBlessings: [],
       currentFloorData: null,
       battleStatus: 'idle',
+      currentTheme: 'dungeon',
+      branchChoices: [],
+      branchEffects: { ...DEFAULT_BRANCH_EFFECTS },
+      branchChoicesMade: [false, false, false, false, false],
+      currentEnding: null,
+      showNarrative: false,
+      narrativePhase: null,
+      currentNarrativeText: '',
+      currentNarrativeTitle: '',
+      currentBranchChoices: [],
+      currentNarrativeChoices: [],
+      triggeredNarrativeEvents: [],
+      currentCampNarrative: null,
+      narrativeResultText: '',
     });
     
     saveTowerSave({
@@ -539,6 +1098,20 @@ export const useTowerStore = create<TowerStore>((set, get) => ({
       currentBlessings: [],
       currentFloorData: null,
       battleStatus: 'idle',
+      currentTheme: 'dungeon',
+      branchChoices: [],
+      branchEffects: { ...DEFAULT_BRANCH_EFFECTS },
+      branchChoicesMade: [false, false, false, false, false],
+      currentEnding: null,
+      showNarrative: false,
+      narrativePhase: null,
+      currentNarrativeText: '',
+      currentNarrativeTitle: '',
+      currentBranchChoices: [],
+      currentNarrativeChoices: [],
+      triggeredNarrativeEvents: [],
+      currentCampNarrative: null,
+      narrativeResultText: '',
     });
   },
 

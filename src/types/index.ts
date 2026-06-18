@@ -655,7 +655,27 @@ export type TowerDebuffType =
   | 'small_grid'
   | 'half_energy'
   | 'low_heal'
-  | 'enrage_enemy';
+  | 'enrage_enemy'
+  | 'poison_aura'
+  | 'mana_drain'
+  | 'vines_entangle'
+  | 'darkness_veil'
+  | 'lava_burn'
+  | 'dragon_fear'
+  | 'void_corruption'
+  | 'spell_seal'
+  | 'confusion'
+  | 'amnesia'
+  | 'despair'
+  | 'void_touch'
+  | 'fear'
+  | 'darkness'
+  | 'curse'
+  | 'poison'
+  | 'blind'
+  | 'corruption'
+  | 'mind_control'
+  | 'burn';
 
 export type TowerBlessingType =
   | 'double_first_energy'
@@ -667,7 +687,34 @@ export type TowerBlessingType =
   | 'life_steal'
   | 'double_combo'
   | 'start_with_shield'
-  | 'thorns';
+  | 'thorns'
+  | 'holy_shield'
+  | 'holy_ward'
+  | 'nature_ward'
+  | 'jungle_eye'
+  | 'purification'
+  | 'nature_bane'
+  | 'dark_sight'
+  | 'abyss_whisper'
+  | 'holy_power'
+  | 'angel_blessing'
+  | 'true_name'
+  | 'hidden_name'
+  | 'abyss_mastery'
+  | 'flame_imbue'
+  | 'dragon_blood'
+  | 'ritual_breaker'
+  | 'dragon_breath'
+  | 'dragon_lullaby'
+  | 'dragon_flame'
+  | 'void_insight'
+  | 'memory_anchor'
+  | 'void_embrace'
+  | 'echo_power'
+  | 'empathy_resonance'
+  | 'light_slasher'
+  | 'light_vessel'
+  | 'star_forge';
 
 export interface TowerDebuff {
   type: TowerDebuffType;
@@ -685,14 +732,70 @@ export interface TowerBlessing {
   cost: number;
 }
 
+export type TowerNarrativeEventType = 
+  | 'enter_floor'
+  | 'before_battle'
+  | 'after_victory'
+  | 'camp_story'
+  | 'camp_choice'
+  | 'elite_encounter'
+  | 'treasure_found'
+  | 'trap_triggered'
+  | 'mysterious_event';
+
+export interface TowerFloorNarrativeEvent {
+  id: string;
+  type: TowerNarrativeEventType;
+  title: string;
+  text: string;
+  choices?: TowerNarrativeChoice[];
+  autoTrigger?: boolean;
+  icon?: string;
+}
+
+export interface TowerNarrativeChoice {
+  id: string;
+  text: string;
+  resultText: string;
+  icon: string;
+  effect: TowerBranchEffect;
+}
+
+export interface TowerCampStoryEvent {
+  id: string;
+  theme: TowerThemeType;
+  campIndex: number;
+  title: string;
+  text: string;
+  npcName?: string;
+  npcSprite?: string;
+  choices: TowerNarrativeChoice[];
+  unlockCondition?: string;
+}
+
+export interface TowerFloorNarrative {
+  theme: TowerThemeType;
+  floorInTheme: number;
+  enterEvent?: TowerFloorNarrativeEvent;
+  victoryEvent?: TowerFloorNarrativeEvent;
+  campEvents?: TowerCampStoryEvent[];
+}
+
 export interface TowerFloor {
   floor: number;
   enemy: Enemy;
   debuffs: TowerDebuff[];
-  blessings: TowerBlessing[];
+  blessings?: TowerBlessing[];
+  floorBlessings?: TowerBlessing[];
   isBoss: boolean;
   isCamp: boolean;
+  isBranchCamp?: boolean;
+  isElite?: boolean;
+  theme?: TowerThemeType;
   goldReward: number;
+  narrativeEvent?: TowerFloorNarrativeEvent;
+  victoryEvent?: TowerFloorNarrativeEvent;
+  campNarrative?: TowerCampStoryEvent;
 }
 
 export interface TowerSaveData {
@@ -719,6 +822,26 @@ export const TOWER_DEBUFFS: TowerDebuff[] = [
   { type: 'half_energy', name: '能量衰减', description: '能量上限减半', icon: '🔋↓' },
   { type: 'low_heal', name: '治愈抑制', description: '治疗效果降低50%', icon: '💔' },
   { type: 'enrage_enemy', name: '狂暴光环', description: '敌人攻击力提升30%', icon: '💢' },
+  { type: 'poison_aura', name: '毒雾弥漫', description: '丛林毒雾，每回合损失5点生命', icon: '☠️' },
+  { type: 'mana_drain', name: '魔力汲取', description: '深渊魔力吞噬，初始能量减2', icon: '🌀' },
+  { type: 'vines_entangle', name: '藤蔓缠绕', description: '额外生成2个冰冻格', icon: '🌿' },
+  { type: 'darkness_veil', name: '黑暗面纱', description: '深渊黑雾，不生成雷属性符文', icon: '🌑' },
+  { type: 'lava_burn', name: '熔岩灼烧', description: '龙巢余热，每回合损失3点生命', icon: '🌋' },
+  { type: 'dragon_fear', name: '龙威震慑', description: '龙族恐惧，首回合无法施法', icon: '🐲' },
+  { type: 'void_corruption', name: '虚空侵蚀', description: '虚空腐化，随机封印一种元素', icon: '🕳️' },
+  { type: 'spell_seal', name: '法术封印', description: '本层无法使用组合法术', icon: '🔮' },
+  { type: 'confusion', name: '精神混乱', description: '虚空扭曲认知，消除方向随机', icon: '😵' },
+  { type: 'amnesia', name: '记忆遗忘', description: '虚空吞噬记忆，无法查看敌人血量', icon: '🧠' },
+  { type: 'despair', name: '绝望光环', description: '虚空绝望，护盾效果减半', icon: '😢' },
+  { type: 'void_touch', name: '虚空之触', description: '虚空侵蚀，治疗转化为伤害', icon: '👻' },
+  { type: 'fear', name: '恐惧', description: '敌人威压，有概率跳过回合', icon: '😨' },
+  { type: 'darkness', name: '黑暗', description: '黑暗笼罩，部分格子不可见', icon: '🌑' },
+  { type: 'curse', name: '诅咒', description: '受到伤害增加25%', icon: '💀' },
+  { type: 'poison', name: '毒素', description: '每回合损失2点生命', icon: '☠️' },
+  { type: 'blind', name: '失明', description: '无法预判敌人行动', icon: '👁️' },
+  { type: 'corruption', name: '腐化', description: '能量获取减少30%', icon: '🖤' },
+  { type: 'mind_control', name: '精神控制', description: '有概率自动攻击自己', icon: '🌀' },
+  { type: 'burn', name: '灼烧', description: '每回合损失3点生命', icon: '🔥' },
 ];
 
 export const TOWER_BLESSINGS: TowerBlessing[] = [
@@ -732,6 +855,33 @@ export const TOWER_BLESSINGS: TowerBlessing[] = [
   { type: 'double_combo', name: '连击大师', description: '连击能量收益翻倍', icon: '⚡⚡', rarity: 'rare', cost: 150 },
   { type: 'start_with_shield', name: '守护祝福', description: '每层开始时获得15点护盾', icon: '🌟', rarity: 'common', cost: 80 },
   { type: 'thorns', name: '荆棘护甲', description: '受到伤害时反弹15%伤害', icon: '🌵', rarity: 'rare', cost: 130 },
+  { type: 'holy_shield', name: '神圣护盾', description: '每回合回复5点生命', icon: '🛡️✨', rarity: 'common', cost: 70 },
+  { type: 'holy_ward', name: '圣光驱散', description: '免疫诅咒、恐惧和黑暗效果', icon: '📿', rarity: 'rare', cost: 120 },
+  { type: 'nature_ward', name: '自然守护', description: '免疫毒素，每回合回复2点生命', icon: '🌿', rarity: 'common', cost: 80 },
+  { type: 'jungle_eye', name: '丛林之眼', description: '免疫毒素和失明，暴击率+15%', icon: '👁️', rarity: 'rare', cost: 110 },
+  { type: 'purification', name: '净化之力', description: '免疫腐化和毒素，伤害+15%', icon: '✨', rarity: 'rare', cost: 130 },
+  { type: 'nature_bane', name: '天灾之力', description: '对丛林敌人伤害+35%', icon: '💀🌿', rarity: 'epic', cost: 200 },
+  { type: 'dark_sight', name: '黑暗视野', description: '暴击率+10%，最大生命-5', icon: '👁️🌑', rarity: 'rare', cost: 90 },
+  { type: 'abyss_whisper', name: '深渊低语', description: '伤害+25%，暴击率+15%', icon: '🌑', rarity: 'rare', cost: 140 },
+  { type: 'holy_power', name: '神圣之力', description: '对亡灵敌人伤害+35%，最大生命-10', icon: '✨💀', rarity: 'epic', cost: 190 },
+  { type: 'angel_blessing', name: '天使祝福', description: '免疫诅咒和黑暗，每回合回复4点生命', icon: '👼', rarity: 'epic', cost: 220 },
+  { type: 'true_name', name: '真名之力', description: '伤害+30%，敌人伤害-15%', icon: '📜', rarity: 'epic', cost: 250 },
+  { type: 'hidden_name', name: '隐名之力', description: '暴击率+15%，最大生命+20', icon: '🔮', rarity: 'rare', cost: 150 },
+  { type: 'abyss_mastery', name: '深渊精通', description: '伤害+35%，免疫恐惧、混乱和黑暗', icon: '🌑💎', rarity: 'epic', cost: 280 },
+  { type: 'flame_imbue', name: '烈焰淬炼', description: '伤害+10%', icon: '🔥', rarity: 'common', cost: 60 },
+  { type: 'dragon_blood', name: '龙血觉醒', description: '伤害+25%，最大生命+15', icon: '🐲💉', rarity: 'rare', cost: 160 },
+  { type: 'ritual_breaker', name: '破魔之人', description: '免疫精神控制和恐惧，暴击率+15%', icon: '📜⚔️', rarity: 'rare', cost: 140 },
+  { type: 'dragon_breath', name: '龙息吐息', description: '伤害+30%，最大生命+10', icon: '🐲🔥', rarity: 'epic', cost: 230 },
+  { type: 'dragon_lullaby', name: '龙之摇篮曲', description: '免疫精神控制、恐惧和灼烧，每回合回复3点生命', icon: '🎵🐲', rarity: 'epic', cost: 240 },
+  { type: 'dragon_flame', name: '龙焰附体', description: '伤害+20%，最大生命+25，护盾+15', icon: '🐲🔥✨', rarity: 'epic', cost: 260 },
+  { type: 'void_insight', name: '虚空洞察', description: '暴击率+10%', icon: '🕳️👁️', rarity: 'common', cost: 70 },
+  { type: 'memory_anchor', name: '记忆锚点', description: '免疫混乱和遗忘，最大生命+20', icon: '💎', rarity: 'epic', cost: 220 },
+  { type: 'void_embrace', name: '虚空拥抱', description: '伤害+25%，最大生命-5', icon: '🌀', rarity: 'rare', cost: 140 },
+  { type: 'echo_power', name: '回响之力', description: '伤害+35%，最大生命+20', icon: '💫', rarity: 'epic', cost: 280 },
+  { type: 'empathy_resonance', name: '共情共鸣', description: '免疫绝望和虚空之触，每回合回复3点生命', icon: '💝', rarity: 'epic', cost: 270 },
+  { type: 'light_slasher', name: '光之斩击者', description: '伤害+40%，暴击率+20%', icon: '⚔️✨', rarity: 'epic', cost: 300 },
+  { type: 'light_vessel', name: '光之容器', description: '免疫虚空之触、绝望和遗忘，每回合回复4点生命', icon: '✨', rarity: 'epic', cost: 320 },
+  { type: 'star_forge', name: '星光锻造', description: '伤害+50%，暴击率+25%，最大生命-20', icon: '⚔️🌟', rarity: 'epic', cost: 350 },
 ];
 
 export const BLESSING_RARITY_WEIGHTS: Record<string, [number, number, number]> = {
@@ -742,6 +892,522 @@ export const BLESSING_RARITY_WEIGHTS: Record<string, [number, number, number]> =
 export const TOWER_TOTAL_FLOORS = 50;
 export const TOWER_CAMP_INTERVAL = 3;
 export const TOWER_BOSS_INTERVAL = 10;
+export const TOWER_THEME_INTERVAL = 10;
+
+export type TowerThemeType = 'dungeon' | 'jungle' | 'abyss' | 'dragon_nest' | 'void';
+
+export type TowerBranchChoiceType =
+  | 'sacrifice_shield_for_crit'
+  | 'reduce_hp_for_regen'
+  | 'accept_curse_for_power'
+  | 'gain_gold_for_difficulty'
+  | 'embrace_void_for_energy'
+  | 'tame_beast_for_companion'
+  | 'dragon_blessing'
+  | 'dragon_curse'
+  | 'abyss_power'
+  | 'void_enlightenment';
+
+export interface TowerBranchEffect {
+  playerMaxHp?: number;
+  playerShield?: number;
+  critChance?: number;
+  regenPerTurn?: number;
+  goldMultiplier?: number;
+  damageMultiplier?: number;
+  difficultyMultiplier?: number;
+  energyGain?: number;
+  companion?: string;
+  blessingType?: TowerBlessingType;
+  debuffImmune?: TowerDebuffType[];
+}
+
+export interface TowerBranchChoice {
+  id: TowerBranchChoiceType;
+  name: string;
+  description: string;
+  icon: string;
+  effect: TowerBranchEffect;
+  narrativeText: string;
+  endingPath?: string;
+}
+
+export interface TowerNarrative {
+  theme: TowerThemeType;
+  title: string;
+  introText: string;
+  campTexts: string[];
+  branchChoices: TowerBranchChoice[];
+  bossIntro: string;
+  bossVictoryText: string;
+}
+
+export interface TowerTheme {
+  type: TowerThemeType;
+  name: string;
+  icon: string;
+  color: string;
+  startFloor: number;
+  endFloor: number;
+  description: string;
+  enemyTypes: string[];
+  preferredElements: ElementType[];
+  bannedElements?: ElementType[];
+  characteristicDebuffs: TowerDebuffType[];
+  enemyPool: string[];
+  bossId: string;
+  eliteId?: string;
+}
+
+export type TowerEndingType =
+  | 'hero_victory'
+  | 'abyss_corrupted'
+  | 'void_enlightened'
+  | 'dragon_tamer'
+  | 'beast_master'
+  | 'greedy_fool'
+  | 'cursed_power'
+  | 'sacrificial_hero';
+
+export interface TowerEnding {
+  type: TowerEndingType;
+  name: string;
+  icon: string;
+  color: string;
+  description: string;
+  requiredChoices: TowerBranchChoiceType[];
+  forbiddenChoices?: TowerBranchChoiceType[];
+  goldBonus: number;
+  achievementId?: string;
+}
+
+export interface TowerEnemyThemeData {
+  id: string;
+  theme: TowerThemeType;
+  enemyType: string;
+  name: string;
+  maxHp: number;
+  attack: number;
+  resistance: Partial<Record<ElementType, number>>;
+  sprite: string;
+  attackPattern: number[];
+  description: string;
+  aiConfig: Partial<EnemyAIConfig>;
+}
+
+export const TOWER_THEMES: TowerTheme[] = [
+  {
+    type: 'dungeon',
+    name: '石砌地牢',
+    icon: '🏰',
+    color: '#8B7355',
+    startFloor: 1,
+    endFloor: 10,
+    description: '阴暗潮湿的地牢，充斥着低级魔物和陷阱。这是一切冒险的起点。',
+    enemyTypes: ['slime', 'elemental', 'undead'],
+    preferredElements: ['fire', 'thunder'],
+    characteristicDebuffs: ['small_grid', 'no_grass_rune', 'mana_drain', 'curse', 'darkness'],
+    enemyPool: [
+      'dungeon_slime',
+      'dungeon_rat',
+      'dungeon_skeleton',
+      'dungeon_spider',
+      'dungeon_golem',
+      'dungeon_bat',
+      'dungeon_mimic',
+      'dungeon_shade',
+    ],
+    bossId: 'boss_dungeon_warden',
+    eliteId: 'elite_dungeon_jailer',
+  },
+  {
+    type: 'jungle',
+    name: '翠绿丛林',
+    icon: '🌳',
+    color: '#228B22',
+    startFloor: 11,
+    endFloor: 20,
+    description: '生机盎然却危机四伏的丛林，野兽横行，藤蔓缠绕。',
+    enemyTypes: ['beast', 'elemental'],
+    preferredElements: ['grass', 'water'],
+    bannedElements: [],
+    characteristicDebuffs: ['no_fire_rune', 'low_heal', 'poison_aura', 'vines_entangle', 'poison', 'blind'],
+    enemyPool: [
+      'jungle_wolf',
+      'jungle_snake',
+      'jungle_treant',
+      'jungle_spore',
+      'jungle_panther',
+      'jungle_frog',
+      'jungle_mantis',
+      'jungle_mushroom',
+    ],
+    bossId: 'boss_jungle_guardian',
+    eliteId: 'elite_jungle_hunter',
+  },
+  {
+    type: 'abyss',
+    name: '幽暗深渊',
+    icon: '🕳️',
+    color: '#4B0082',
+    startFloor: 21,
+    endFloor: 30,
+    description: '深不见底的深渊，黑暗中潜伏着难以名状的恐怖。',
+    enemyTypes: ['undead', 'demon'],
+    preferredElements: ['water', 'thunder'],
+    bannedElements: ['fire'],
+    characteristicDebuffs: ['half_energy', 'enrage_enemy', 'no_fire_rune', 'mana_drain', 'darkness_veil', 'darkness', 'fear', 'corruption', 'mind_control'],
+    enemyPool: [
+      'abyss_ghost',
+      'abyss_wraith',
+      'abyss_demon',
+      'abyss_eye',
+      'abyss_tentacle',
+      'abyss_shade',
+      'abyss_crawler',
+      'abyss_siren',
+    ],
+    bossId: 'boss_abyss_lord',
+    eliteId: 'elite_abyss_keeper',
+  },
+  {
+    type: 'dragon_nest',
+    name: '烈焰龙巢',
+    icon: '🐲',
+    color: '#B22222',
+    startFloor: 31,
+    endFloor: 40,
+    description: '灼热的龙巢，龙族的领地，空气中弥漫着硫磺和危险。',
+    enemyTypes: ['dragon', 'demon'],
+    preferredElements: ['fire'],
+    bannedElements: ['water'],
+    characteristicDebuffs: ['enrage_enemy', 'no_water_rune', 'low_heal', 'lava_burn', 'dragon_fear', 'burn', 'fear'],
+    enemyPool: [
+      'dragon_whelp',
+      'dragon_drake',
+      'dragon_guardian',
+      'dragon_flame_elemental',
+      'dragon_knight',
+      'dragon_hatchling',
+      'dragon_cultist',
+      'dragon_salamander',
+    ],
+    bossId: 'boss_ancient_dragon',
+    eliteId: 'elite_dragon_champion',
+  },
+  {
+    type: 'void',
+    name: '虚空裂隙',
+    icon: '🌌',
+    color: '#1a1a2e',
+    startFloor: 41,
+    endFloor: 50,
+    description: '扭曲的虚空世界，现实与幻象交织，一切规则都将被打破。',
+    enemyTypes: ['undead', 'demon', 'elemental'],
+    preferredElements: ['thunder'],
+    bannedElements: [],
+    characteristicDebuffs: ['half_energy', 'small_grid', 'no_grass_rune', 'no_fire_rune', 'void_corruption', 'spell_seal', 'confusion', 'amnesia', 'despair', 'void_touch', 'darkness', 'mind_control'],
+    enemyPool: [
+      'void_walker',
+      'void_horror',
+      'void_mage',
+      'void_eater',
+      'void_titan',
+      'void_phantom',
+      'void_seer',
+      'void_fragment',
+    ],
+    bossId: 'boss_void_emperor',
+    eliteId: 'elite_void_herald',
+  },
+];
+
+export const TOWER_NARRATIVES: Record<TowerThemeType, TowerNarrative> = {
+  dungeon: {
+    theme: 'dungeon',
+    title: '踏入地牢',
+    introText: '你推开沉重的石门，一股霉味扑面而来。火把在墙上摇曳，照亮了前方蜿蜒的走廊。地牢深处传来诡异的声响...',
+    campTexts: [
+      '你在一处相对安全的角落搭起了临时营地。墙壁上的刻痕显示曾有前人在此休息。',
+      '火光驱散了黑暗，却也引来了周围生物的注意。你需要快速做出决定。',
+      '地上散落着前人的遗物，似乎在诉说着这里曾经发生的故事。',
+    ],
+    branchChoices: [
+      {
+        id: 'sacrifice_shield_for_crit',
+        name: '破釜沉舟',
+        description: '牺牲护盾换取暴击率提升',
+        icon: '⚔️',
+        effect: {
+          playerShield: -20,
+          critChance: 25,
+        },
+        narrativeText: '你将盾牌弃置一旁，双手紧握武器。虽然失去了防护，但每一击都将更加致命。',
+        endingPath: 'sacrificial_hero',
+      },
+      {
+        id: 'reduce_hp_for_regen',
+        name: '生命律动',
+        description: '降低最大生命值换取每回合自动回复',
+        icon: '💚',
+        effect: {
+          playerMaxHp: -20,
+          regenPerTurn: 5,
+        },
+        narrativeText: '你感受着生命力的流动，虽然整体变得脆弱，但伤口将以更快的速度愈合。',
+      },
+    ],
+    bossIntro: '地牢尽头传来沉重的脚步声。地牢守护者出现了——它曾是守护此地的骑士，如今却沦为了黑暗的囚徒。',
+    bossVictoryText: '守护者倒下了，它的眼中闪过一丝解脱。通往更深层的道路在你面前展开。',
+  },
+  jungle: {
+    theme: 'jungle',
+    title: '深入丛林',
+    introText: '茂密的树冠遮蔽了阳光，空气中弥漫着潮湿的气息。野兽的低吼从四面八方传来，你已经进入了它们的领地。',
+    campTexts: [
+      '你找到了一处被藤蔓环绕的空地。周围的植物似乎在警惕地观察着你。',
+      '篝火的烟味引来了好奇的丛林生物。你感觉有无数双眼睛在暗处注视。',
+      '一棵古老的大树下，你发现了神秘的祭坛。上面刻着你看不懂的符文。',
+    ],
+    branchChoices: [
+      {
+        id: 'tame_beast_for_companion',
+        name: '野兽伙伴',
+        description: '尝试驯服一只丛林野兽作为同伴',
+        icon: '🐺',
+        effect: {
+          companion: 'jungle_wolf',
+          damageMultiplier: 0.15,
+        },
+        narrativeText: '你用食物和耐心赢得了一只丛林狼的信任。它将在接下来的战斗中助你一臂之力。',
+        endingPath: 'beast_master',
+      },
+      {
+        id: 'accept_curse_for_power',
+        name: '自然之力',
+        description: '接受丛林的诅咒获得强大力量',
+        icon: '🌿',
+        effect: {
+          blessingType: 'life_steal',
+          difficultyMultiplier: 1.2,
+        },
+        narrativeText: '你将手伸向祭坛，古老的力量涌入你的身体。你感受到了丛林的意志，但也听到了它的警告...',
+        endingPath: 'cursed_power',
+      },
+    ],
+    bossIntro: '大地开始颤抖，参天古树缓缓移动。森林守护者苏醒了，它将用千年的力量来驱逐入侵者。',
+    bossVictoryText: '古老的守护者回归了大地。它的根系中涌出清泉，似乎在表达对你的认可。',
+  },
+  abyss: {
+    theme: 'abyss',
+    title: '坠落深渊',
+    introText: '你踏入了深渊的领域。在这里，光明是奢侈品，黑暗是永恒的伴侣。你能感受到深渊正在凝视着你...',
+    campTexts: [
+      '深渊中没有昼夜之分。你只能依靠魔法光源维持着这一方小天地的光明。',
+      '周围的岩壁在蠕动。不，那不是岩壁，那是某种更恐怖的存在...',
+      '你在黑暗中发现了一处祭坛。它散发着不祥的气息，却又充满了诱惑。',
+    ],
+    branchChoices: [
+      {
+        id: 'abyss_power',
+        name: '深渊之力',
+        description: '拥抱深渊的力量，代价是灵魂的一部分',
+        icon: '👁️',
+        effect: {
+          damageMultiplier: 0.3,
+          playerMaxHp: -30,
+        },
+        narrativeText: '你张开双臂，任由深渊的力量涌入体内。力量在血管中咆哮，但你知道这力量终将吞噬你...',
+        endingPath: 'abyss_corrupted',
+      },
+      {
+        id: 'gain_gold_for_difficulty',
+        name: '贪婪之选',
+        description: '献祭部分生命力换取大量金币',
+        icon: '💰',
+        effect: {
+          playerHp: -25,
+          goldMultiplier: 0.5,
+        },
+        narrativeText: '你向祭坛献祭了自己的生命力，金币如雨点般落下。财富近在咫尺，但你也变得更加脆弱。',
+        endingPath: 'greedy_fool',
+      },
+    ],
+    bossIntro: '黑暗凝聚成实体，深渊领主现身了。它是这片黑暗的化身，是所有恐惧的根源。',
+    bossVictoryText: '深渊领主发出无声的嘶吼，化为黑雾消散。但你知道，深渊永远不会真正消失...',
+  },
+  dragon_nest: {
+    theme: 'dragon_nest',
+    title: '龙巢烈焰',
+    introText: '灼热的空气几乎让人窒息。你来到了龙族的领地，每一步都可能惊醒沉睡中的巨龙。',
+    campTexts: [
+      '你在一处熔岩洞穴中找到了暂时的安全。脚下的地面散发着余温。',
+      '龙鳞散落一地，闪烁着金色的光芒。这是财富，也是警告。',
+      '一处古老的祭坛上，放置着一颗发光的龙晶。它蕴含着龙族的力量。',
+    ],
+    branchChoices: [
+      {
+        id: 'dragon_blessing',
+        name: '龙族祝福',
+        description: '接受龙族的祝福，获得强大的力量',
+        icon: '✨',
+        effect: {
+          blessingType: 'critical_hit',
+          damageMultiplier: 0.2,
+        },
+        narrativeText: '你将手放在龙晶上，龙族的力量流入你的身体。你感受到了远古巨龙的意志。',
+        endingPath: 'dragon_tamer',
+      },
+      {
+        id: 'dragon_curse',
+        name: '龙血契约',
+        description: '饮下龙血，获得龙的力量但承受诅咒',
+        icon: '🩸',
+        effect: {
+          playerMaxHp: 50,
+          blessingType: 'thorns',
+          difficultyMultiplier: 1.3,
+        },
+        narrativeText: '你饮下了滚烫的龙血，力量在体内沸腾。龙的诅咒也随之而来——未来的敌人将变得更加凶残。',
+      },
+    ],
+    bossIntro: '震天动地的咆哮响彻整个洞穴。远古巨龙睁开了它的双眼，瞳孔中燃烧着不灭的火焰。',
+    bossVictoryText: '巨龙发出最后的悲鸣，缓缓闭上了双眼。它的力量归于大地，也归于你。',
+  },
+  void: {
+    theme: 'void',
+    title: '虚空终焉',
+    introText: '现实在这里扭曲，时间在这里停滞。你踏入了虚空的核心，一切规则都将被打破。',
+    campTexts: [
+      '你在虚空中找到了一处相对稳定的角落。周围的景象在不断变化，如同梦境。',
+      '虚空中飘浮着无数的记忆碎片。你看到了过去，也看到了可能的未来。',
+      '一座漂浮的祭坛出现在你面前。它连接着无数的世界，也连接着最终的真相。',
+    ],
+    branchChoices: [
+      {
+        id: 'void_enlightenment',
+        name: '虚空悟道',
+        description: '领悟虚空的真理，超越凡俗',
+        icon: '🌌',
+        effect: {
+          energyGain: 2,
+          blessingType: 'spell_splash',
+          playerMaxHp: -40,
+        },
+        narrativeText: '你领悟了虚空的真理，肉体变得脆弱，但精神达到了前所未有的高度。',
+        endingPath: 'void_enlightened',
+      },
+      {
+        id: 'embrace_void_for_energy',
+        name: '能量掌控',
+        description: '拥抱虚空获得无尽能量',
+        icon: '⚡',
+        effect: {
+          energyGain: 3,
+          blessingType: 'double_combo',
+        },
+        narrativeText: '你张开双臂，任由虚空能量涌入体内。你感到自己可以释放无穷无尽的法术。',
+        endingPath: 'hero_victory',
+      },
+    ],
+    bossIntro: '虚空开始剧烈震动，虚空之主从混沌中现身。它是一切的终点，也是一切的起点。',
+    bossVictoryText: '虚空之主缓缓消散，化为漫天星辰。你站在虚空的尽头，一个新的世界在你面前展开...',
+  },
+};
+
+export const TOWER_ENDINGS: TowerEnding[] = [
+  {
+    type: 'hero_victory',
+    name: '英雄凯旋',
+    icon: '🏆',
+    color: '#FFD700',
+    description: '你凭借智慧和勇气，成功征服了大秘境。你的名字将被永远铭记。',
+    requiredChoices: ['embrace_void_for_energy'],
+    forbiddenChoices: ['abyss_power', 'void_enlightenment'],
+    goldBonus: 500,
+    achievementId: 'tower_hero_victory',
+  },
+  {
+    type: 'abyss_corrupted',
+    name: '深渊腐化',
+    icon: '👁️',
+    color: '#4B0082',
+    description: '深渊的力量最终吞噬了你。你成为了新的深渊领主，等待着下一个冒险者的到来...',
+    requiredChoices: ['abyss_power'],
+    goldBonus: 200,
+    achievementId: 'tower_abyss_corrupted',
+  },
+  {
+    type: 'void_enlightened',
+    name: '虚空悟道',
+    icon: '🌌',
+    color: '#1a1a2e',
+    description: '你超越了凡俗的界限，领悟了虚空的真理。你不再是人，而是某种更加高等的存在。',
+    requiredChoices: ['void_enlightenment'],
+    goldBonus: 300,
+    achievementId: 'tower_void_enlightened',
+  },
+  {
+    type: 'dragon_tamer',
+    name: '御龙者',
+    icon: '🐲',
+    color: '#B22222',
+    description: '你赢得了龙族的尊重。巨龙成为了你的伙伴，你将骑着它翱翔于天际。',
+    requiredChoices: ['dragon_blessing'],
+    forbiddenChoices: ['dragon_curse'],
+    goldBonus: 600,
+    achievementId: 'tower_dragon_tamer',
+  },
+  {
+    type: 'beast_master',
+    name: '兽王',
+    icon: '🦁',
+    color: '#228B22',
+    description: '你与丛林野兽建立了深厚的羁绊。无数野兽愿意听从你的召唤，你成为了丛林之王。',
+    requiredChoices: ['tame_beast_for_companion'],
+    goldBonus: 400,
+    achievementId: 'tower_beast_master',
+  },
+  {
+    type: 'greedy_fool',
+    name: '贪婪愚人',
+    icon: '💰',
+    color: '#FFD700',
+    description: '你获得了无尽的财富，却也付出了惨痛的代价。金钱无法买回你失去的一切。',
+    requiredChoices: ['gain_gold_for_difficulty'],
+    goldBonus: 1000,
+    achievementId: 'tower_greedy_fool',
+  },
+  {
+    type: 'cursed_power',
+    name: '诅咒之力',
+    icon: '🌿',
+    color: '#556B2F',
+    description: '丛林的诅咒与力量并存。你获得了强大的生命力，却永远无法离开这片丛林。',
+    requiredChoices: ['accept_curse_for_power'],
+    goldBonus: 350,
+    achievementId: 'tower_cursed_power',
+  },
+  {
+    type: 'sacrificial_hero',
+    name: '牺牲英雄',
+    icon: '⚔️',
+    color: '#8B0000',
+    description: '你舍弃了防御，选择了最危险的道路。你的勇气将被后人传颂，但你的名字无人知晓。',
+    requiredChoices: ['sacrifice_shield_for_crit'],
+    forbiddenChoices: ['gain_gold_for_difficulty', 'abyss_power'],
+    goldBonus: 450,
+    achievementId: 'tower_sacrificial_hero',
+  },
+];
+
+export const getThemeForFloor = (floor: number): TowerTheme => {
+  return TOWER_THEMES.find(t => floor >= t.startFloor && floor <= t.endFloor) || TOWER_THEMES[0];
+};
+
+export const getNarrativeForTheme = (theme: TowerThemeType): TowerNarrative => {
+  return TOWER_NARRATIVES[theme];
+};
 
 // ============== 竞技场 PVP 系统类型定义 ==============
 
