@@ -1,9 +1,41 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTowerStore } from '../store/useTowerStore';
-import { TOWER_TOTAL_FLOORS, TOWER_BLESSINGS, TOWER_DEBUFFS, TOWER_THEMES, QUALITY_COLORS, QUALITY_NAMES } from '../types';
-import type { TowerBlessing, TowerDebuffType, TowerNarrativeChoice, TowerBranchChoice, TowerEnding } from '../types';
+import { TOWER_TOTAL_FLOORS, TOWER_BLESSINGS, TOWER_DEBUFFS, TOWER_THEMES, QUALITY_COLORS, QUALITY_NAMES, TOWER_NARRATIVES } from '../types';
+import type { TowerBlessing, TowerDebuffType, TowerNarrativeChoice, TowerBranchChoice, TowerEnding, TowerThemeType } from '../types';
 import { Mountain, Castle, Tent, Trophy, Coins, Heart, Shield, Zap, X, Play, Home, BookOpen, Star, Trash2, Swords, Scroll, Sparkles } from 'lucide-react';
+
+interface ChoiceMeta {
+  name: string;
+  icon: string;
+  theme: TowerThemeType;
+}
+
+const buildChoiceMetaMap = (): Record<string, ChoiceMeta> => {
+  const map: Record<string, ChoiceMeta> = {};
+  (Object.keys(TOWER_NARRATIVES) as TowerThemeType[]).forEach(theme => {
+    const narrative = TOWER_NARRATIVES[theme];
+    narrative.branchChoices.forEach(choice => {
+      map[choice.id] = { name: choice.name, icon: choice.icon, theme };
+    });
+  });
+  return map;
+};
+
+const CHOICE_META_MAP = buildChoiceMetaMap();
+
+const getChoiceMeta = (choiceId: string): ChoiceMeta => {
+  if (CHOICE_META_MAP[choiceId]) return CHOICE_META_MAP[choiceId];
+  let fallbackTheme: TowerThemeType = 'dungeon';
+  if (choiceId.startsWith('jungle')) fallbackTheme = 'jungle';
+  else if (choiceId.startsWith('abyss')) fallbackTheme = 'abyss';
+  else if (choiceId.startsWith('dragon')) fallbackTheme = 'dragon_nest';
+  else if (choiceId.startsWith('void') || choiceId.startsWith('embrace')) fallbackTheme = 'void';
+  const readableName = choiceId
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, s => s.toUpperCase());
+  return { name: readableName, icon: '📜', theme: fallbackTheme };
+};
 
 const RARITY_BG: Record<string, string> = {
   common: 'bg-gray-500/20 border-gray-500/50',
@@ -712,10 +744,11 @@ export const TowerPage: React.FC = () => {
               <div className="text-sm text-gray-400 mb-3">你的关键选择：</div>
               <div className="flex flex-wrap gap-2 justify-center">
                 {branchChoices.map((choice, i) => {
-                  const theme = TOWER_THEMES[Math.min(i, TOWER_THEMES.length - 1)];
+                  const meta = getChoiceMeta(choice);
+                  const theme = TOWER_THEMES.find(t => t.type === meta.theme) || TOWER_THEMES[0];
                   return (
                     <div 
-                      key={i} 
+                      key={`${choice}-${i}`} 
                       className="px-3 py-1.5 rounded-lg text-sm flex items-center gap-1.5"
                       style={{ 
                         backgroundColor: theme.color + '20', 
@@ -723,8 +756,8 @@ export const TowerPage: React.FC = () => {
                         border: `1px solid ${theme.color}40`
                       }}
                     >
-                      <span>{theme.icon}</span>
-                      <span>{choice.replace(/_/g, ' ')}</span>
+                      <span>{meta.icon}</span>
+                      <span>{meta.name}</span>
                     </div>
                   );
                 })}

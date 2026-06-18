@@ -753,7 +753,7 @@ export const useTowerStore = create<TowerStore & ExtendedTowerState & ExtendedTo
     const { branchEffects } = get();
     let damage = baseDamage * (1 + branchEffects.damageMultiplier);
     
-    if (Math.random() * 100 < branchEffects.critChance) {
+    if (branchEffects.critChance > 0 && Math.random() < branchEffects.critChance) {
       damage *= 1.5;
     }
     
