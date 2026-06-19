@@ -28,7 +28,10 @@ import {
   isNewSeason,
   resetForNewSeason,
 } from '../utils/battlePassStorage';
-import { getAchievementData } from '../utils/achievementStorage';
+import { getAchievementData, addMedals, unlockReward, unlockTitle, flushAchievementData } from '../utils/achievementStorage';
+import { addGold } from '../utils/localStorage';
+import { useAchievementStore } from './useAchievementStore';
+import { useEquipmentStore } from './useEquipmentStore';
 
 interface BattlePassNotification {
   id: string;
@@ -229,6 +232,44 @@ export const useBattlePassStore = create<BattlePassState & BattlePassActions>((s
     const availableRewards = rewards.filter((r) => !r.isPremium || data.premiumUnlocked);
     if (availableRewards.length === 0) return false;
 
+    let goldTotal = 0;
+
+    availableRewards.forEach((reward) => {
+      switch (reward.type) {
+        case 'gold': {
+          const goldMatch = reward.id.match(/gold_(\d+)/);
+          if (goldMatch) {
+            const amount = parseInt(goldMatch[1], 10);
+            goldTotal += amount;
+          }
+          break;
+        }
+        case 'medal': {
+          const medalMatch = reward.id.match(/(bronze|silver|gold)_(\d+)/);
+          if (medalMatch) {
+            const tier = medalMatch[1] as 'bronze' | 'silver' | 'gold';
+            const count = parseInt(medalMatch[2], 10);
+            addMedals(tier, count);
+          }
+          break;
+        }
+        case 'cosmetic': {
+          unlockReward(reward.id);
+          break;
+        }
+        case 'title': {
+          unlockTitle(reward.id);
+          break;
+        }
+      }
+    });
+
+    if (goldTotal > 0) {
+      addGold(goldTotal);
+    }
+
+    flushAchievementData();
+
     updateBattlePassData((d) => {
       d.claimedLevels.push(level);
     });
@@ -236,6 +277,13 @@ export const useBattlePassStore = create<BattlePassState & BattlePassActions>((s
 
     const updatedData = getBattlePassData();
     set({ data: { ...updatedData } });
+
+    try {
+      useAchievementStore.getState().load();
+    } catch {}
+    try {
+      useEquipmentStore.getState().load();
+    } catch {}
 
     return true;
   },

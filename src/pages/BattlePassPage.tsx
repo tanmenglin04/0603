@@ -332,7 +332,7 @@ export const BattlePassPage: React.FC = () => {
       <div className="max-w-2xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6">
           <button
-            onClick={() => navigate('/menu')}
+            onClick={() => navigate('/')}
             className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
           >
             <Home size={24} />

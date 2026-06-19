@@ -2290,6 +2290,8 @@ export interface AchievementSaveData {
   equippedBoardSkin: string | null;
   equippedRuneEffect: string | null;
   medalBalance: Record<AchievementTier, number>;
+  unlockedTitles: string[];
+  equippedTitle: string | null;
 }
 
 export const ACHIEVEMENT_TIER_META: Record<AchievementTier, { name: string; icon: string; color: string }> = {
@@ -3286,55 +3288,72 @@ export const WEEKLY_QUEST_POOL: QuestDefinition[] = [
   },
 ];
 
+export interface PlayerTitle {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+}
+
+export const PLAYER_TITLES: PlayerTitle[] = [
+  { id: 'title_beginner', name: '初级冒险者', icon: '🎖️', description: '踏上冒险之路的新人', rarity: 'common' },
+  { id: 'title_veteran', name: '资深冒险者', icon: '🏅', description: '经验丰富的冒险家', rarity: 'rare' },
+  { id: 'title_master', name: '大师级冒险者', icon: '👑', description: '技艺精湛的大师', rarity: 'epic' },
+  { id: 'title_legend', name: '传奇冒险者', icon: '🌟', description: '传说中的英雄', rarity: 'legendary' },
+  { id: 'title_grandmaster', name: '宗师级冒险者', icon: '🏆', description: '站在巅峰的宗师', rarity: 'legendary' },
+  { id: 'title_season_winner', name: '赛季冠军', icon: '🥇', description: '赛季排名第一', rarity: 'legendary' },
+];
+
 export const BATTLE_PASS_REWARDS: BattlePassLevelReward[] = [
   { level: 1, type: 'gold', id: 'gold_100', name: '100 金币', icon: '🪙', isPremium: false },
   { level: 2, type: 'medal', id: 'bronze_1', name: '铜质勋章 x1', icon: '🥉', isPremium: false },
   { level: 3, type: 'gold', id: 'gold_150', name: '150 金币', icon: '🪙', isPremium: true },
-  { level: 4, type: 'cosmetic', id: 'skin_basic', name: '初级棋盘皮肤', icon: '🎨', isPremium: false },
+  { level: 4, type: 'cosmetic', id: 'skin_azure_board', name: '蔚蓝棋盘皮肤', icon: '🌊', isPremium: false },
   { level: 5, type: 'medal', id: 'silver_1', name: '银质勋章 x1', icon: '🥈', isPremium: false },
   { level: 6, type: 'gold', id: 'gold_200', name: '200 金币', icon: '🪙', isPremium: true },
-  { level: 7, type: 'cosmetic', id: 'effect_simple', name: '简约符文特效', icon: '✨', isPremium: false },
+  { level: 7, type: 'cosmetic', id: 'effect_fire_trail', name: '烈焰拖尾特效', icon: '🔥✨', isPremium: false },
   { level: 8, type: 'medal', id: 'bronze_2', name: '铜质勋章 x2', icon: '🥉', isPremium: true },
   { level: 9, type: 'gold', id: 'gold_250', name: '250 金币', icon: '🪙', isPremium: false },
   { level: 10, type: 'title', id: 'title_beginner', name: '初级冒险者', icon: '🎖️', isPremium: false },
   { level: 11, type: 'gold', id: 'gold_300', name: '300 金币', icon: '🪙', isPremium: true },
   { level: 12, type: 'medal', id: 'silver_2', name: '银质勋章 x2', icon: '🥈', isPremium: false },
-  { level: 13, type: 'cosmetic', id: 'skin_elemental', name: '元素棋盘皮肤', icon: '🌈', isPremium: true },
+  { level: 13, type: 'cosmetic', id: 'frame_achiever_silver', name: '成就者银框', icon: '🖼️', isPremium: true },
   { level: 14, type: 'gold', id: 'gold_350', name: '350 金币', icon: '🪙', isPremium: false },
   { level: 15, type: 'medal', id: 'gold_1', name: '金质勋章 x1', icon: '🥇', isPremium: false },
-  { level: 16, type: 'cosmetic', id: 'frame_basic', name: '初级头像框', icon: '🖼️', isPremium: true },
+  { level: 16, type: 'cosmetic', id: 'frame_achiever_bronze', name: '成就者铜框', icon: '🖼️', isPremium: true },
   { level: 17, type: 'gold', id: 'gold_400', name: '400 金币', icon: '🪙', isPremium: false },
   { level: 18, type: 'medal', id: 'silver_3', name: '银质勋章 x3', icon: '🥈', isPremium: true },
   { level: 19, type: 'gold', id: 'gold_450', name: '450 金币', icon: '🪙', isPremium: false },
   { level: 20, type: 'title', id: 'title_veteran', name: '资深冒险者', icon: '🏅', isPremium: false },
-  { level: 21, type: 'cosmetic', id: 'effect_flame', name: '烈焰符文特效', icon: '🔥', isPremium: true },
+  { level: 21, type: 'cosmetic', id: 'effect_nature_bloom', name: '自然绽放特效', icon: '🌸', isPremium: true },
   { level: 22, type: 'gold', id: 'gold_500', name: '500 金币', icon: '🪙', isPremium: false },
   { level: 23, type: 'medal', id: 'gold_2', name: '金质勋章 x2', icon: '🥇', isPremium: true },
-  { level: 24, type: 'cosmetic', id: 'skin_flame', name: '烈焰棋盘皮肤', icon: '🌋', isPremium: false },
+  { level: 24, type: 'cosmetic', id: 'skin_inferno_board', name: '烈焰棋盘皮肤', icon: '🔥', isPremium: false },
   { level: 25, type: 'gold', id: 'gold_600', name: '600 金币', icon: '🪙', isPremium: true },
   { level: 26, type: 'medal', id: 'silver_4', name: '银质勋章 x4', icon: '🥈', isPremium: false },
-  { level: 27, type: 'cosmetic', id: 'frame_elemental', name: '元素头像框', icon: '🖼️', isPremium: true },
+  { level: 27, type: 'cosmetic', id: 'frame_elemental_master', name: '元素大师头像框', icon: '🌈', isPremium: true },
   { level: 28, type: 'gold', id: 'gold_700', name: '700 金币', icon: '🪙', isPremium: false },
   { level: 29, type: 'medal', id: 'gold_3', name: '金质勋章 x3', icon: '🥇', isPremium: true },
   { level: 30, type: 'title', id: 'title_master', name: '大师级冒险者', icon: '👑', isPremium: false },
   { level: 31, type: 'gold', id: 'gold_800', name: '800 金币', icon: '🪙', isPremium: false },
-  { level: 32, type: 'cosmetic', id: 'effect_cosmic', name: '星空符文特效', icon: '🌌', isPremium: true },
+  { level: 32, type: 'cosmetic', id: 'effect_thunder_pulse', name: '雷霆脉冲特效', icon: '⚡💫', isPremium: true },
   { level: 33, type: 'medal', id: 'gold_4', name: '金质勋章 x4', icon: '🥇', isPremium: false },
   { level: 34, type: 'gold', id: 'gold_900', name: '900 金币', icon: '🪙', isPremium: true },
-  { level: 35, type: 'cosmetic', id: 'skin_cosmic', name: '星空棋盘皮肤', icon: '🌠', isPremium: false },
+  { level: 35, type: 'cosmetic', id: 'skin_cosmic_board', name: '星空棋盘皮肤', icon: '🌌', isPremium: false },
   { level: 36, type: 'medal', id: 'gold_5', name: '金质勋章 x5', icon: '🥇', isPremium: true },
   { level: 37, type: 'gold', id: 'gold_1000', name: '1000 金币', icon: '🪙', isPremium: false },
-  { level: 38, type: 'cosmetic', id: 'frame_cosmic', name: '星空头像框', icon: '🖼️', isPremium: true },
+  { level: 38, type: 'cosmetic', id: 'frame_achiever_gold', name: '成就者金框', icon: '🖼️', isPremium: true },
   { level: 39, type: 'gold', id: 'gold_1200', name: '1200 金币', icon: '🪙', isPremium: false },
   { level: 40, type: 'title', id: 'title_legend', name: '传奇冒险者', icon: '🌟', isPremium: false },
   { level: 41, type: 'medal', id: 'gold_6', name: '金质勋章 x6', icon: '🥇', isPremium: true },
   { level: 42, type: 'gold', id: 'gold_1500', name: '1500 金币', icon: '🪙', isPremium: false },
-  { level: 43, type: 'cosmetic', id: 'effect_legendary', name: '传说符文特效', icon: '💫', isPremium: true },
+  { level: 43, type: 'cosmetic', id: 'effect_rainbow_aura', name: '彩虹光环特效', icon: '🌈✨', isPremium: true },
   { level: 44, type: 'gold', id: 'gold_1800', name: '1800 金币', icon: '🪙', isPremium: false },
-  { level: 45, type: 'cosmetic', id: 'skin_legendary', name: '传说棋盘皮肤', icon: '👑', isPremium: true },
+  { level: 45, type: 'cosmetic', id: 'skin_cosmic_board', name: '星空棋盘皮肤', icon: '🌠', isPremium: true },
   { level: 46, type: 'medal', id: 'gold_8', name: '金质勋章 x8', icon: '🥇', isPremium: false },
   { level: 47, type: 'gold', id: 'gold_2000', name: '2000 金币', icon: '🪙', isPremium: true },
-  { level: 48, type: 'cosmetic', id: 'frame_legendary', name: '传说头像框', icon: '🖼️', isPremium: false },
+  { level: 48, type: 'cosmetic', id: 'effect_rainbow_aura', name: '彩虹光环特效', icon: '🌈', isPremium: false },
   { level: 49, type: 'gold', id: 'gold_2500', name: '2500 金币', icon: '🪙', isPremium: true },
   { level: 50, type: 'title', id: 'title_grandmaster', name: '宗师级冒险者', icon: '🏆', isPremium: false },
 ];

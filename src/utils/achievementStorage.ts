@@ -21,6 +21,8 @@ const defaultSaveData: AchievementSaveData = {
   equippedBoardSkin: null,
   equippedRuneEffect: null,
   medalBalance: { bronze: 0, silver: 0, gold: 0 },
+  unlockedTitles: [],
+  equippedTitle: null,
 };
 
 export const loadAchievementSave = (): AchievementSaveData => {
@@ -126,4 +128,20 @@ export const flushAchievementData = (): void => {
 
 export const invalidateAchievementCache = (): void => {
   _cachedData = null;
+};
+
+export const unlockTitle = (titleId: string): void => {
+  const data = getAchievementData();
+  if (!data.unlockedTitles.includes(titleId)) {
+    data.unlockedTitles.push(titleId);
+    _cachedData = data;
+    saveAchievementSave(data);
+  }
+};
+
+export const equipTitle = (titleId: string | null): void => {
+  const data = getAchievementData();
+  data.equippedTitle = titleId;
+  _cachedData = data;
+  saveAchievementSave(data);
 };
