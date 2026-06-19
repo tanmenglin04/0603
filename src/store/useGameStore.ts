@@ -189,6 +189,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
           energy[k] = Math.min(level.maxEnergy, energy[k] + val);
         }
       }
+      if (bonuses.resonance.initialEnergyBonus) {
+        for (const k of Object.keys(energy) as (keyof EnergyPool)[]) {
+          energy[k] = Math.min(level.maxEnergy, energy[k] + bonuses.resonance.initialEnergyBonus!);
+        }
+      }
     }
 
     const newRuneGrid = createRuneGrid(level.specialTiles, GRID_SIZE);
@@ -497,6 +502,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (boost > 0) {
         gain = Math.floor(gain + boost);
       }
+      if (bonuses.resonance.energyBoostBonus) {
+        gain = Math.floor(gain + bonuses.resonance.energyBoostBonus);
+      }
       newEnergy[k] = Math.min(get().maxEnergy, currentEnergy[k] + gain);
       if (gain > 0) {
         get().addFloatingText(`+${gain}${boost > 0 ? ` (+${boost})` : ''}`, 300, 200, element);
@@ -602,6 +610,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
                   if (boost > 0) {
                     amount = Math.floor(amount + boost);
                   }
+                  if (bonuses.resonance.energyBoostBonus) {
+                    amount = Math.floor(amount + bonuses.resonance.energyBoostBonus);
+                  }
                   newEnergy[k] = Math.min(get().maxEnergy, newEnergy[k] + amount);
                 });
               }
@@ -684,9 +695,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const eqItems = getEquippedItems();
     const eqBonuses = getEquipmentBonuses(eqItems);
-    const spellDmgBonus = eqBonuses.spellDamage[spell.element] || 0;
+    let spellDmgBonus = eqBonuses.spellDamage[spell.element] || 0;
+    if (eqBonuses.resonance.spellDamageBonus) {
+      spellDmgBonus += eqBonuses.resonance.spellDamageBonus;
+    }
     if (spellDmgBonus > 0) {
       damage = Math.floor(damage * (1 + spellDmgBonus / 100));
+    }
+    if (eqBonuses.resonance.damageMultiplier) {
+      damage = Math.floor(damage * (1 + eqBonuses.resonance.damageMultiplier));
+    }
+    if (eqBonuses.resonance.critChance && Math.random() < eqBonuses.resonance.critChance) {
+      damage = Math.floor(damage * 1.5);
+      get().addFloatingText('暴击!', 350, 120, 'thunder');
     }
 
     const { enemyUnits: currentUnits } = get();
@@ -815,9 +836,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const comboElements = spell.elements.split('+') as ElementType[];
     const eqItems = getEquippedItems();
     const eqBonuses = getEquipmentBonuses(eqItems);
-    const avgDmgBonus = comboElements.reduce((sum, el) => sum + (eqBonuses.spellDamage[el] || 0), 0) / comboElements.length;
+    let avgDmgBonus = comboElements.reduce((sum, el) => sum + (eqBonuses.spellDamage[el] || 0), 0) / comboElements.length;
+    if (eqBonuses.resonance.spellDamageBonus) {
+      avgDmgBonus += eqBonuses.resonance.spellDamageBonus;
+    }
     if (avgDmgBonus > 0) {
       damage = Math.floor(damage * (1 + avgDmgBonus / 100));
+    }
+    if (eqBonuses.resonance.damageMultiplier) {
+      damage = Math.floor(damage * (1 + eqBonuses.resonance.damageMultiplier));
+    }
+    if (eqBonuses.resonance.critChance && Math.random() < eqBonuses.resonance.critChance) {
+      damage = Math.floor(damage * 1.5);
+      get().addFloatingText('暴击!', 350, 120, 'thunder');
     }
 
     const { enemyUnits: currentUnits } = get();
@@ -951,6 +982,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     set({ enemy: finalEnemy, enemyUnits: updatedUnits });
+
+    const eqItemsForRegen = getEquippedItems();
+    const regenBonuses = getEquipmentBonuses(eqItemsForRegen);
+    if (regenBonuses.resonance.hpRegenPerTurn && regenBonuses.resonance.hpRegenPerTurn > 0) {
+      const regenAmount = regenBonuses.resonance.hpRegenPerTurn;
+      const newHp = Math.min(get().playerMaxHp, get().playerHp + regenAmount);
+      set({ playerHp: newHp });
+      get().addFloatingText(`+${regenAmount}`, 300, 300, 'grass');
+    }
 
     if (newEnemyHp <= 0) {
       const { currentLevelId, turn: currentTurn, battleRecorder: recorder, enemy: curEnemy } = get();

@@ -12,6 +12,9 @@ import {
   ELEMENT_ICONS,
   ELEMENT_COLORS,
   REROLL_COST,
+  SERIES_NAMES,
+  SERIES_ICONS,
+  SERIES_COLORS,
 } from '../types';
 
 interface EquipmentCardProps {
@@ -53,7 +56,7 @@ const EquipmentCard: React.FC<EquipmentCardProps> = ({
   showActions = true,
   compact = false,
 }) => {
-  const { element, quality, level, affixes } = equipment;
+  const { element, quality, level, affixes, series } = equipment;
   const sellPrice = SELL_PRICES[quality] * level;
 
   return (
@@ -89,6 +92,18 @@ const EquipmentCard: React.FC<EquipmentCardProps> = ({
             {level > 1 && (
               <span className="text-xs font-semibold text-game-gold bg-game-gold/20 px-1.5 py-0.5 rounded">
                 Lv.{level}
+              </span>
+            )}
+            {series && (
+              <span
+                className={`text-xs font-bold px-1.5 py-0.5 rounded ${compact ? 'text-[10px]' : ''}`}
+                style={{
+                  color: SERIES_COLORS[series],
+                  backgroundColor: `${SERIES_COLORS[series]}15`,
+                  border: `1px solid ${SERIES_COLORS[series]}40`,
+                }}
+              >
+                {SERIES_ICONS[series]} {SERIES_NAMES[series]}
               </span>
             )}
             <span

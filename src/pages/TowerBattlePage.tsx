@@ -358,6 +358,11 @@ export const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
         energy[k] = Math.min(maxEnergy, energy[k] + val);
       }
     }
+    if (bonuses.resonance.initialEnergyBonus) {
+      for (const k of Object.keys(energy) as (keyof EnergyPoolType)[]) {
+        energy[k] = Math.min(maxEnergy, energy[k] + bonuses.resonance.initialEnergyBonus!);
+      }
+    }
 
     if (debuffTypes.includes('mana_drain')) {
       Object.keys(energy).forEach(key => {
@@ -637,6 +642,9 @@ export const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
       if (boost > 0) {
         gain = Math.floor(gain + boost);
       }
+      if (bonuses.resonance.energyBoostBonus) {
+        gain = Math.floor(gain + bonuses.resonance.energyBoostBonus);
+      }
       if (towerBlessings.includes('double_combo') && comboCount > 0) {
         gain *= 2;
       }
@@ -688,6 +696,9 @@ export const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
                   const boost = bonuses.energyBoost[k] || 0;
                   if (boost > 0) {
                     amount = Math.floor(amount + boost);
+                  }
+                  if (bonuses.resonance.energyBoostBonus) {
+                    amount = Math.floor(amount + bonuses.resonance.energyBoostBonus);
                   }
                   if (towerBlessings.includes('double_combo')) {
                     amount *= 2;
@@ -807,9 +818,15 @@ export const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
 
     const eqItems = getEquippedItems();
     const eqBonuses = getEquipmentBonuses(eqItems);
-    const spellDmgBonus = eqBonuses.spellDamage[spell.element] || 0;
+    let spellDmgBonus = eqBonuses.spellDamage[spell.element] || 0;
+    if (eqBonuses.resonance.spellDamageBonus) {
+      spellDmgBonus += eqBonuses.resonance.spellDamageBonus;
+    }
     if (spellDmgBonus > 0) {
       damage = Math.floor(damage * (1 + spellDmgBonus / 100));
+    }
+    if (eqBonuses.resonance.damageMultiplier) {
+      damage = Math.floor(damage * (1 + eqBonuses.resonance.damageMultiplier));
     }
 
     if (branchDamageMultiplier !== 0) {
@@ -817,7 +834,7 @@ export const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
     }
 
     const baseCritChance = towerBlessings.includes('critical_hit') ? 0.2 : 0;
-    const totalCritChance = baseCritChance + branchCritChance;
+    const totalCritChance = baseCritChance + branchCritChance + (eqBonuses.resonance.critChance || 0);
     if (totalCritChance > 0 && Math.random() < totalCritChance) {
       damage = Math.floor(damage * 1.5);
       get().addFloatingText('暴击!', 400, 120, 'yellow');
@@ -998,9 +1015,15 @@ export const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
     const comboElements = spell.elements.split('+') as ElementType[];
     const eqItems = getEquippedItems();
     const eqBonuses = getEquipmentBonuses(eqItems);
-    const avgDmgBonus = comboElements.reduce((sum, el) => sum + (eqBonuses.spellDamage[el] || 0), 0) / comboElements.length;
+    let avgDmgBonus = comboElements.reduce((sum, el) => sum + (eqBonuses.spellDamage[el] || 0), 0) / comboElements.length;
+    if (eqBonuses.resonance.spellDamageBonus) {
+      avgDmgBonus += eqBonuses.resonance.spellDamageBonus;
+    }
     if (avgDmgBonus > 0) {
       damage = Math.floor(damage * (1 + avgDmgBonus / 100));
+    }
+    if (eqBonuses.resonance.damageMultiplier) {
+      damage = Math.floor(damage * (1 + eqBonuses.resonance.damageMultiplier));
     }
 
     if (branchDamageMultiplier !== 0) {
@@ -1008,7 +1031,7 @@ export const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
     }
 
     const baseCritChance = towerBlessings.includes('critical_hit') ? 0.2 : 0;
-    const totalCritChance = baseCritChance + branchCritChance;
+    const totalCritChance = baseCritChance + branchCritChance + (eqBonuses.resonance.critChance || 0);
     if (totalCritChance > 0 && Math.random() < totalCritChance) {
       damage = Math.floor(damage * 1.5);
       get().addFloatingText('暴击!', 400, 120, 'yellow');
@@ -1199,6 +1222,15 @@ export const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
     );
 
     set({ enemy: finalEnemy, enemyUnits: updatedUnits });
+
+    const eqItemsForRegen = getEquippedItems();
+    const regenBonuses = getEquipmentBonuses(eqItemsForRegen);
+    if (regenBonuses.resonance.hpRegenPerTurn && regenBonuses.resonance.hpRegenPerTurn > 0) {
+      const regenAmount = regenBonuses.resonance.hpRegenPerTurn;
+      const towerStore = useTowerStore.getState();
+      towerStore.healPlayer(regenAmount);
+      get().addFloatingText(`+${regenAmount}`, 300, 300, 'grass');
+    }
 
     if (newEnemyHp <= 0) {
       set({ battleStatus: 'victory' });

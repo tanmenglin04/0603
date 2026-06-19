@@ -517,6 +517,28 @@ export type EquipmentQuality = 'common' | 'rare' | 'epic' | 'legendary';
 
 export type AffixType = 'energy_boost' | 'spell_damage' | 'initial_energy';
 
+export type EquipmentSeries = 'blaze' | 'frost' | 'storm' | 'earth';
+
+export interface ResonanceEffect {
+  spellDamageBonus?: number;
+  energyBoostBonus?: number;
+  initialEnergyBonus?: number;
+  hpRegenPerTurn?: number;
+  critChance?: number;
+  damageMultiplier?: number;
+}
+
+export interface SeriesResonanceConfig {
+  series: EquipmentSeries;
+  name: string;
+  icon: string;
+  color: string;
+  piece2: ResonanceEffect;
+  piece4: ResonanceEffect;
+  piece2Desc: string;
+  piece4Desc: string;
+}
+
 export interface EquipmentAffix {
   type: AffixType;
   value: number;
@@ -528,6 +550,7 @@ export interface RuneEquipment {
   quality: EquipmentQuality;
   level: number;
   affixes: EquipmentAffix[];
+  series: EquipmentSeries;
 }
 
 export interface EquipmentSaveData {
@@ -584,6 +607,77 @@ export const QUALITY_AFFIX_COUNT: Record<EquipmentQuality, number> = {
   epic: 3,
   legendary: 4,
 };
+
+export const SERIES_NAMES: Record<EquipmentSeries, string> = {
+  blaze: '烈焰',
+  frost: '寒冰',
+  storm: '风暴',
+  earth: '大地',
+};
+
+export const SERIES_ICONS: Record<EquipmentSeries, string> = {
+  blaze: '🔥',
+  frost: '❄️',
+  storm: '⛈️',
+  earth: '🌍',
+};
+
+export const SERIES_COLORS: Record<EquipmentSeries, string> = {
+  blaze: '#ff6b35',
+  frost: '#4fc3f7',
+  storm: '#ab47bc',
+  earth: '#66bb6a',
+};
+
+export const SERIES_BG: Record<EquipmentSeries, string> = {
+  blaze: 'bg-orange-500/20 border-orange-500/50',
+  frost: 'bg-cyan-500/20 border-cyan-500/50',
+  storm: 'bg-purple-500/20 border-purple-500/50',
+  earth: 'bg-green-500/20 border-green-500/50',
+};
+
+export const SERIES_RESONANCE: SeriesResonanceConfig[] = [
+  {
+    series: 'blaze',
+    name: '烈焰系列',
+    icon: '🔥',
+    color: '#ff6b35',
+    piece2: { spellDamageBonus: 15 },
+    piece4: { spellDamageBonus: 35, damageMultiplier: 0.15, critChance: 0.1 },
+    piece2Desc: '法术伤害+15%',
+    piece4Desc: '法术伤害+35%，全伤害+15%，暴击率+10%',
+  },
+  {
+    series: 'frost',
+    name: '寒冰系列',
+    icon: '❄️',
+    color: '#4fc3f7',
+    piece2: { energyBoostBonus: 2 },
+    piece4: { energyBoostBonus: 5, initialEnergyBonus: 3 },
+    piece2Desc: '消除能量+2',
+    piece4Desc: '消除能量+5，初始能量+3',
+  },
+  {
+    series: 'storm',
+    name: '风暴系列',
+    icon: '⛈️',
+    color: '#ab47bc',
+    piece2: { initialEnergyBonus: 3 },
+    piece4: { initialEnergyBonus: 6, critChance: 0.15 },
+    piece2Desc: '初始能量+3',
+    piece4Desc: '初始能量+6，暴击率+15%',
+  },
+  {
+    series: 'earth',
+    name: '大地系列',
+    icon: '🌍',
+    color: '#66bb6a',
+    piece2: { hpRegenPerTurn: 5 },
+    piece4: { hpRegenPerTurn: 12, damageMultiplier: 0.1, spellDamageBonus: 20 },
+    piece2Desc: '每回合恢复5点生命',
+    piece4Desc: '每回合恢复12点生命，全伤害+10%，法术伤害+20%',
+  },
+];
 
 export const LEVEL_GOLD_REWARD: Record<number, number> = {
   1: 80,

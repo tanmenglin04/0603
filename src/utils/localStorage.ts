@@ -131,7 +131,17 @@ export const loadEquipmentSave = (): EquipmentSaveData => {
     const data = localStorage.getItem(EQUIPMENT_STORAGE_KEY);
     if (data) {
       const parsed = JSON.parse(data);
-      return { ...defaultEquipmentSave, ...parsed };
+      const result = { ...defaultEquipmentSave, ...parsed };
+      if (result.inventory) {
+        result.inventory = result.inventory.map((item: any) => {
+          if (!item.series) {
+            const seriesOptions = ['blaze', 'frost', 'storm', 'earth'];
+            item.series = seriesOptions[Math.floor(Math.random() * seriesOptions.length)];
+          }
+          return item;
+        });
+      }
+      return result;
     }
   } catch (error) {
     console.error('Failed to load equipment data:', error);

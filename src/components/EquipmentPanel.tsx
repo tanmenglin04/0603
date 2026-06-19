@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useEquipmentStore } from '../store/useEquipmentStore';
-import type { ElementType, EquipmentQuality, RuneEquipment } from '../types';
+import type { ElementType, EquipmentQuality, EquipmentSeries, RuneEquipment } from '../types';
 import {
   ELEMENT_NAMES,
   ELEMENT_ICONS,
@@ -8,17 +8,22 @@ import {
   QUALITY_NAMES,
   QUALITY_COLORS,
   getSlotsForLevel,
+  SERIES_NAMES,
+  SERIES_ICONS,
+  SERIES_COLORS,
+  SERIES_RESONANCE,
 } from '../types';
-import { canUpgrade } from '../utils/runeEquipment';
+import { canUpgrade, getActiveResonances, getSeriesPieceCount } from '../utils/runeEquipment';
 import EquipmentCard from './EquipmentCard';
-import { Coins, ArrowLeft, Package, Wand2, RefreshCw } from 'lucide-react';
+import { Coins, ArrowLeft, Package, Wand2, Sparkles } from 'lucide-react';
 
-type TabKey = 'slots' | 'inventory' | 'upgrade';
+type TabKey = 'slots' | 'inventory' | 'upgrade' | 'resonance';
 
 const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: 'slots', label: '装备槽位', icon: <Package size={16} /> },
   { key: 'inventory', label: '背包', icon: <Coins size={16} /> },
   { key: 'upgrade', label: '升阶', icon: <Wand2 size={16} /> },
+  { key: 'resonance', label: '共鸣', icon: <Sparkles size={16} /> },
 ];
 
 const ELEMENTS: ElementType[] = ['fire', 'water', 'grass', 'thunder'];
@@ -37,6 +42,14 @@ const ELEMENT_FILTERS: { key: ElementType | 'all'; label: string; icon: string }
   { key: 'water', label: '水', icon: '💧' },
   { key: 'grass', label: '草', icon: '🌿' },
   { key: 'thunder', label: '雷', icon: '⚡' },
+];
+
+const SERIES_FILTERS: { key: EquipmentSeries | 'all'; label: string; icon: string }[] = [
+  { key: 'all', label: '全部', icon: '✦' },
+  { key: 'blaze', label: '烈焰', icon: '🔥' },
+  { key: 'frost', label: '寒冰', icon: '❄️' },
+  { key: 'storm', label: '风暴', icon: '⛈️' },
+  { key: 'earth', label: '大地', icon: '🌍' },
 ];
 
 interface EquipmentPanelProps {
@@ -63,6 +76,7 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState<TabKey>('slots');
   const [elementFilter, setElementFilter] = useState<ElementType | 'all'>('all');
   const [qualityFilter, setQualityFilter] = useState<EquipmentQuality | 'all'>('all');
+  const [seriesFilter, setSeriesFilter] = useState<EquipmentSeries | 'all'>('all');
 
   useEffect(() => {
     load();
@@ -92,6 +106,23 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ onBack }) => {
     return result;
   };
 
+  const allEquippedItems = useMemo(() => {
+    const items: RuneEquipment[] = [];
+    for (const element of ELEMENTS) {
+      const slots = equipped[element] || [];
+      for (const id of slots) {
+        if (id) {
+          const item = getItemById(id);
+          if (item) items.push(item);
+        }
+      }
+    }
+    return items;
+  }, [equipped, inventory]);
+
+  const activeResonances = useMemo(() => getActiveResonances(allEquippedItems), [allEquippedItems]);
+  const seriesCounts = useMemo(() => getSeriesPieceCount(allEquippedItems), [allEquippedItems]);
+
   const getElementBonuses = (element: ElementType) => {
     const items = getEquippedForElement(element).filter((i): i is RuneEquipment => i !== null);
     let energyBoost = 0;
@@ -111,9 +142,10 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ onBack }) => {
     return inventory.filter((item) => {
       if (elementFilter !== 'all' && item.element !== elementFilter) return false;
       if (qualityFilter !== 'all' && item.quality !== qualityFilter) return false;
+      if (seriesFilter !== 'all' && item.series !== seriesFilter) return false;
       return true;
     });
-  }, [inventory, elementFilter, qualityFilter]);
+  }, [inventory, elementFilter, qualityFilter, seriesFilter]);
 
   const selectedItems = useMemo(() => {
     return selectedUpgradeItems
@@ -136,10 +168,6 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ onBack }) => {
     }
   };
 
-  const handleEquip = (element: ElementType, slotIndex: number, equipmentId: string) => {
-    equip(element, slotIndex, equipmentId);
-  };
-
   const handleUnequip = (element: ElementType, slotIndex: number) => {
     unequip(element, slotIndex);
   };
@@ -150,6 +178,29 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ onBack }) => {
 
   const renderSlotsTab = () => (
     <div className="space-y-4">
+      {activeResonances.length > 0 && (
+        <div className="bg-gradient-to-r from-purple-900/40 to-indigo-900/40 border border-purple-500/30 rounded-xl p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles size={16} className="text-purple-300" />
+            <span className="text-sm font-bold text-purple-200">共鸣效果</span>
+          </div>
+          <div className="space-y-1">
+            {activeResonances.map((r) => {
+              const config = SERIES_RESONANCE.find((c) => c.series === r.series)!;
+              return (
+                <div key={r.series} className="flex items-center gap-2 text-xs">
+                  <span style={{ color: SERIES_COLORS[r.series] }}>
+                    {SERIES_ICONS[r.series]} {SERIES_NAMES[r.series]}
+                  </span>
+                  <span className="text-gray-400">({r.pieces}件)</span>
+                  <span style={{ color: SERIES_COLORS[r.series] }}>{r.desc}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {ELEMENTS.map((element) => {
         const equippedItems = getEquippedForElement(element);
         const bonuses = getElementBonuses(element);
@@ -256,6 +307,27 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ onBack }) => {
               }}
             >
               {f.label}
+            </span>
+          </button>
+        ))}
+        <div className="w-px bg-gray-600/50 mx-1" />
+        {SERIES_FILTERS.map((f) => (
+          <button
+            key={f.key}
+            onClick={() => setSeriesFilter(f.key)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              seriesFilter === f.key
+                ? 'bg-game-gold text-game-bg-dark'
+                : 'bg-game-bg-dark text-gray-300 hover:bg-game-card-hover'
+            }`}
+          >
+            <span
+              style={{
+                color:
+                  f.key !== 'all' ? SERIES_COLORS[f.key as EquipmentSeries] : undefined,
+              }}
+            >
+              {f.icon} {f.label}
             </span>
           </button>
         ))}
@@ -389,6 +461,140 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ onBack }) => {
     </div>
   );
 
+  const renderResonanceTab = () => (
+    <div className="space-y-3">
+      <div className="game-card p-4 mb-2">
+        <div className="flex items-center gap-2 mb-2">
+          <Sparkles size={18} className="text-purple-300" />
+          <h3 className="font-bold text-purple-200 text-sm">套装共鸣</h3>
+        </div>
+        <p className="text-xs text-gray-400">
+          穿戴同一系列的装备达到2件或4件时，触发共鸣效果。不同系列之间可叠加。
+        </p>
+      </div>
+
+      {activeResonances.length > 0 && (
+        <div className="bg-gradient-to-r from-purple-900/50 to-indigo-900/50 border border-purple-500/40 rounded-xl p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles size={16} className="text-yellow-300" />
+            <span className="text-sm font-bold text-yellow-200">当前激活共鸣</span>
+          </div>
+          <div className="space-y-2">
+            {activeResonances.map((r) => (
+              <div
+                key={r.series}
+                className="bg-black/30 rounded-lg p-2.5 border"
+                style={{ borderColor: `${SERIES_COLORS[r.series]}40` }}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span style={{ color: SERIES_COLORS[r.series] }} className="font-bold text-sm">
+                    {SERIES_ICONS[r.series]} {SERIES_NAMES[r.series]}系列
+                  </span>
+                  <span
+                    className="text-xs px-1.5 py-0.5 rounded font-bold"
+                    style={{
+                      color: SERIES_COLORS[r.series],
+                      backgroundColor: `${SERIES_COLORS[r.series]}20`,
+                    }}
+                  >
+                    {r.pieces}件套
+                  </span>
+                </div>
+                <div className="text-xs" style={{ color: SERIES_COLORS[r.series] }}>
+                  {r.desc}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {SERIES_RESONANCE.map((config) => {
+        const count = seriesCounts[config.series];
+        const isActive2 = count >= 2;
+        const isActive4 = count >= 4;
+
+        return (
+          <div
+            key={config.series}
+            className="game-card p-4 border-l-4"
+            style={{ borderLeftColor: config.color }}
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xl">{config.icon}</span>
+              <h3 className="font-bold text-sm" style={{ color: config.color }}>
+                {config.name}
+              </h3>
+              <span className="ml-auto text-xs text-gray-400">
+                已穿戴 {count} 件
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              <div
+                className={`rounded-lg p-2.5 border ${
+                  isActive2
+                    ? 'bg-green-900/20 border-green-500/40'
+                    : 'bg-gray-900/30 border-gray-700/30'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span
+                    className={`text-xs font-bold px-1.5 py-0.5 rounded ${
+                      isActive2 ? 'bg-green-500/30 text-green-300' : 'bg-gray-700/50 text-gray-500'
+                    }`}
+                  >
+                    2件套
+                  </span>
+                  {isActive2 && <span className="text-xs text-green-400">✅ 已激活</span>}
+                </div>
+                <p className={`text-xs ${isActive2 ? 'text-green-200' : 'text-gray-500'}`}>
+                  {config.piece2Desc}
+                </p>
+              </div>
+
+              <div
+                className={`rounded-lg p-2.5 border ${
+                  isActive4
+                    ? 'bg-yellow-900/20 border-yellow-500/40'
+                    : 'bg-gray-900/30 border-gray-700/30'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span
+                    className={`text-xs font-bold px-1.5 py-0.5 rounded ${
+                      isActive4 ? 'bg-yellow-500/30 text-yellow-300' : 'bg-gray-700/50 text-gray-500'
+                    }`}
+                  >
+                    4件套
+                  </span>
+                  {isActive4 && <span className="text-xs text-yellow-400">✅ 已激活</span>}
+                </div>
+                <p className={`text-xs ${isActive4 ? 'text-yellow-200' : 'text-gray-500'}`}>
+                  {config.piece4Desc}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-2">
+              <div className="flex gap-1">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={`h-1.5 flex-1 rounded-full ${
+                      i < count ? '' : 'bg-gray-700/50'
+                    }`}
+                    style={i < count ? { backgroundColor: config.color } : undefined}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className="min-h-screen w-full overflow-auto p-4">
       <div className="max-w-2xl mx-auto">
@@ -429,6 +635,7 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ onBack }) => {
           {activeTab === 'slots' && renderSlotsTab()}
           {activeTab === 'inventory' && renderInventoryTab()}
           {activeTab === 'upgrade' && renderUpgradeTab()}
+          {activeTab === 'resonance' && renderResonanceTab()}
         </div>
       </div>
     </div>
