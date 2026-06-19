@@ -68,7 +68,8 @@ export const canUpgrade = (items: RuneEquipment[]): boolean => {
     (item) =>
       item.element === first.element &&
       item.quality === first.quality &&
-      item.level === first.level,
+      item.level === first.level &&
+      item.series === first.series,
   );
 };
 

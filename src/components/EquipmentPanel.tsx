@@ -417,14 +417,80 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ onBack }) => {
           <div className="game-card p-3 mb-4">
             <div className="text-xs text-gray-400 mb-1">升阶预览</div>
             {upgradeValid ? (
-              <div className="text-sm text-green-400">
-                ✅ 可升阶 — 3件{ELEMENT_ICONS[selectedItems[0].element]}
-                {ELEMENT_NAMES[selectedItems[0].element]}元素
-                {QUALITY_NAMES[selectedItems[0].quality]}品质 Lv.{selectedItems[0].level} 装备
+              <div className="space-y-1">
+                <div className="text-sm text-green-400">
+                  ✅ 可升阶
+                </div>
+                <div className="text-xs text-gray-300 space-y-0.5">
+                  <div>
+                    {ELEMENT_ICONS[selectedItems[0].element]} 元素：
+                    {ELEMENT_NAMES[selectedItems[0].element]}
+                  </div>
+                  <div style={{ color: QUALITY_COLORS[selectedItems[0].quality] }}>
+                    ◆ 品质：{QUALITY_NAMES[selectedItems[0].quality]}
+                  </div>
+                  <div>等级：Lv.{selectedItems[0].level}</div>
+                  <div style={{ color: SERIES_COLORS[selectedItems[0].series] }}>
+                    {SERIES_ICONS[selectedItems[0].series]} 系列：
+                    {SERIES_NAMES[selectedItems[0].series]}系列
+                  </div>
+                </div>
               </div>
             ) : (
-              <div className="text-sm text-red-400">
-                ❌ 无法升阶 — 需要同元素、同品质、同等级的3件装备
+              <div className="space-y-1">
+                <div className="text-sm text-red-400">❌ 无法升阶</div>
+                <div className="text-xs text-gray-400 space-y-0.5">
+                  {(() => {
+                    const first = selectedItems[0];
+                    const checks = [
+                      {
+                        label: '同元素',
+                        icon: '🔥',
+                        pass: selectedItems.every(
+                          (i) => i.element === first.element,
+                        ),
+                        detail: ELEMENT_NAMES[first.element],
+                      },
+                      {
+                        label: '同品质',
+                        icon: '◆',
+                        pass: selectedItems.every(
+                          (i) => i.quality === first.quality,
+                        ),
+                        detail: QUALITY_NAMES[first.quality],
+                      },
+                      {
+                        label: '同等级',
+                        icon: 'Lv.',
+                        pass: selectedItems.every(
+                          (i) => i.level === first.level,
+                        ),
+                        detail: `Lv.${first.level}`,
+                      },
+                      {
+                        label: '同系列',
+                        icon: SERIES_ICONS[first.series],
+                        pass: selectedItems.every(
+                          (i) => i.series === first.series,
+                        ),
+                        detail: `${SERIES_NAMES[first.series]}系列`,
+                      },
+                    ];
+                    return checks.map((c) => (
+                      <div key={c.label} className="flex items-center gap-2">
+                        <span className={c.pass ? 'text-green-400' : 'text-red-400'}>
+                          {c.pass ? '✓' : '✗'}
+                        </span>
+                        <span className="text-gray-300">
+                          {c.icon} {c.label}
+                        </span>
+                        <span className="text-gray-500">
+                          {c.detail}
+                        </span>
+                      </div>
+                    ));
+                  })()}
+                </div>
               </div>
             )}
           </div>

@@ -359,9 +359,14 @@ export const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
       }
     }
     if (bonuses.resonance.initialEnergyBonus) {
-      for (const k of Object.keys(energy) as (keyof EnergyPoolType)[]) {
-        energy[k] = Math.min(maxEnergy, energy[k] + bonuses.resonance.initialEnergyBonus!);
-      }
+      const totalBonus = bonuses.resonance.initialEnergyBonus;
+      const perElement = Math.floor(totalBonus / 4);
+      const remainder = totalBonus % 4;
+      const elementKeys = Object.keys(energy) as (keyof EnergyPoolType)[];
+      elementKeys.forEach((k, i) => {
+        const extra = i < remainder ? 1 : 0;
+        energy[k] = Math.min(maxEnergy, energy[k] + perElement + extra);
+      });
     }
 
     if (debuffTypes.includes('mana_drain')) {
@@ -642,7 +647,7 @@ export const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
       if (boost > 0) {
         gain = Math.floor(gain + boost);
       }
-      if (bonuses.resonance.energyBoostBonus) {
+      if (bonuses.resonance.energyBoostBonus && k === element) {
         gain = Math.floor(gain + bonuses.resonance.energyBoostBonus);
       }
       if (towerBlessings.includes('double_combo') && comboCount > 0) {
@@ -697,7 +702,7 @@ export const useTowerBattleStore = create<TowerBattleStore>((set, get) => ({
                   if (boost > 0) {
                     amount = Math.floor(amount + boost);
                   }
-                  if (bonuses.resonance.energyBoostBonus) {
+                  if (bonuses.resonance.energyBoostBonus && k === el) {
                     amount = Math.floor(amount + bonuses.resonance.energyBoostBonus);
                   }
                   if (towerBlessings.includes('double_combo')) {
