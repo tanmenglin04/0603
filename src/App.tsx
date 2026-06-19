@@ -12,6 +12,7 @@ import { P2PRoomPage } from '@/pages/P2PRoomPage';
 import { BattleReplayPage } from '@/pages/BattleReplayPage';
 import { LeaderboardPage } from '@/pages/LeaderboardPage';
 import { AchievementPage } from '@/pages/AchievementPage';
+import { BattlePassPage } from '@/pages/BattlePassPage';
 import { WorkshopPage } from '@/pages/WorkshopPage';
 import { WorkshopLevelDetailPage } from '@/pages/WorkshopLevelDetailPage';
 import { LevelEditorPage } from '@/pages/LevelEditorPage';
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="/arena/replay/:battleId" element={<BattleReplayPage />} />
           <Route path="/arena/leaderboard" element={<LeaderboardPage />} />
           <Route path="/achievements" element={<AchievementPage />} />
+          <Route path="/battlepass" element={<BattlePassPage />} />
           <Route path="/workshop" element={<WorkshopPage />} />
           <Route path="/workshop/level/:levelId" element={<WorkshopLevelDetailPage />} />
           <Route path="/workshop/editor" element={<LevelEditorPage />} />

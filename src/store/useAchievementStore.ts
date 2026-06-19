@@ -23,6 +23,7 @@ import {
   equipCosmetic,
   flushAchievementData,
 } from '../utils/achievementStorage';
+import { useBattlePassStore } from './useBattlePassStore';
 
 interface AchievementNotification {
   id: string;
@@ -127,6 +128,23 @@ for (const def of ACHIEVEMENT_DEFINITIONS) {
   achievementsByStatKey[prefix].push(def);
 }
 
+let battlePassUpdateTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingBattlePassUpdate = false;
+
+const triggerBattlePassUpdate = () => {
+  pendingBattlePassUpdate = true;
+  if (battlePassUpdateTimer) return;
+
+  battlePassUpdateTimer = setTimeout(() => {
+    battlePassUpdateTimer = null;
+    if (pendingBattlePassUpdate) {
+      pendingBattlePassUpdate = false;
+      const data = getAchievementData();
+      useBattlePassStore.getState().updateProgress(data.stats);
+    }
+  }, 300);
+};
+
 export const useAchievementStore = create<AchievementState & AchievementActions>((set, get) => ({
   stats: {
     runesEliminated: { fire: 0, water: 0, grass: 0, thunder: 0 },
@@ -185,6 +203,8 @@ export const useAchievementStore = create<AchievementState & AchievementActions>
 
       return { stats: newStats, progress: newProgress };
     });
+
+    triggerBattlePassUpdate();
   },
 
   recordSpellCast: (spellId: string) => {
@@ -205,6 +225,8 @@ export const useAchievementStore = create<AchievementState & AchievementActions>
 
       return { stats: newStats, progress: newProgress };
     });
+
+    triggerBattlePassUpdate();
   },
 
   recordComboSpellCast: (spellId: string) => {
@@ -225,6 +247,8 @@ export const useAchievementStore = create<AchievementState & AchievementActions>
 
       return { stats: newStats, progress: newProgress };
     });
+
+    triggerBattlePassUpdate();
   },
 
   recordEnemyKilled: (enemyId: string) => {
@@ -247,6 +271,8 @@ export const useAchievementStore = create<AchievementState & AchievementActions>
 
       return { stats: newStats, progress: newProgress };
     });
+
+    triggerBattlePassUpdate();
   },
 
   recordEquipmentAcquired: (quality: EquipmentQuality) => {
@@ -287,6 +313,8 @@ export const useAchievementStore = create<AchievementState & AchievementActions>
 
       return { stats: newStats, progress: newProgress };
     });
+
+    triggerBattlePassUpdate();
   },
 
   recordBattleWon: () => {
@@ -306,6 +334,8 @@ export const useAchievementStore = create<AchievementState & AchievementActions>
 
       return { stats: newStats, progress: newProgress };
     });
+
+    triggerBattlePassUpdate();
   },
 
   recordTowerFloorCleared: () => {
@@ -325,6 +355,8 @@ export const useAchievementStore = create<AchievementState & AchievementActions>
 
       return { stats: newStats, progress: newProgress };
     });
+
+    triggerBattlePassUpdate();
   },
 
   recordPVPWin: () => {
@@ -344,6 +376,8 @@ export const useAchievementStore = create<AchievementState & AchievementActions>
 
       return { stats: newStats, progress: newProgress };
     });
+
+    triggerBattlePassUpdate();
   },
 
   claimAchievement: (achievementId: string, tier: AchievementTier): boolean => {
