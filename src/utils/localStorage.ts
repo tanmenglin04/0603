@@ -14,6 +14,7 @@ export interface SaveData {
     levelId: number;
     playerHp: number;
     playerMaxHp: number;
+    playerShield: number;
     energy: EnergyPool;
     enemy: Enemy;
     enemyUnits: CombatUnit[];
@@ -62,6 +63,7 @@ export const saveBattleProgress = (state: GameState): void => {
     levelId: state.currentLevelId,
     playerHp: state.playerHp,
     playerMaxHp: state.playerMaxHp,
+    playerShield: (state as any).playerShield || 0,
     energy: state.energy,
     enemy: state.enemy,
     enemyUnits: state.enemyUnits,

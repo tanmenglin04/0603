@@ -24,6 +24,7 @@ interface EquipmentCardProps {
   onSell?: () => void;
   onEquip?: () => void;
   onUnequip?: () => void;
+  onRecast?: () => void;
   isSelected?: boolean;
   isEquipped?: boolean;
   showActions?: boolean;
@@ -51,6 +52,7 @@ const EquipmentCard: React.FC<EquipmentCardProps> = ({
   onSell,
   onEquip,
   onUnequip,
+  onRecast,
   isSelected = false,
   isEquipped = false,
   showActions = true,
@@ -163,7 +165,7 @@ const EquipmentCard: React.FC<EquipmentCardProps> = ({
         )}
 
         {showActions && !compact && (
-          <div className="mt-3 flex items-center gap-2">
+          <div className="mt-3 flex items-center gap-2 flex-wrap">
             {onSell && (
               <button
                 className="game-button text-xs px-3 py-1.5 bg-gray-600/60 hover:bg-gray-500/70 text-gray-200 rounded-lg flex items-center gap-1 transition-colors"
@@ -174,6 +176,18 @@ const EquipmentCard: React.FC<EquipmentCardProps> = ({
               >
                 <ShoppingBag size={12} />
                 出售 {sellPrice}💰
+              </button>
+            )}
+            {onRecast && (
+              <button
+                className="game-button text-xs px-3 py-1.5 bg-purple-600/60 hover:bg-purple-500/70 text-purple-200 rounded-lg flex items-center gap-1 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRecast();
+                }}
+              >
+                <RefreshCw size={12} />
+                重铸套装
               </button>
             )}
             {onEquip && !isEquipped && (

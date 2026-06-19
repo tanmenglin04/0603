@@ -28,6 +28,7 @@ import {
   decrementTerrainFrozen,
   calculateThornsDamage,
   applyStormTerrainEffect,
+  getEffectiveResistance,
 } from '../utils/gameLogic';
 import {
   decideEnemyBehavior,
@@ -121,6 +122,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   currentLevelId: null,
   playerHp: 100,
   playerMaxHp: 100,
+  playerShield: 0,
   energy: { ...initialEnergy },
   maxEnergy: 10,
   gridSize: GRID_SIZE,
@@ -169,9 +171,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     let turn = 1;
     let comboSpellCooldowns = {};
 
+    let playerShield = 0;
     if (savedBattle && savedBattle.levelId === levelId) {
       playerHp = savedBattle.playerHp;
       playerMaxHp = savedBattle.playerMaxHp;
+      playerShield = (savedBattle as any).playerShield || 0;
       energy = savedBattle.energy;
       enemy = savedBattle.enemy;
       enemyUnits = savedBattle.enemyUnits || [enemy];
@@ -217,6 +221,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       currentLevelId: levelId,
       playerHp,
       playerMaxHp,
+      playerShield,
       energy,
       maxEnergy: level.maxEnergy,
       gridSize: GRID_SIZE,
@@ -500,6 +505,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const newEnergy = { ...currentEnergy };
     const equippedItems = getEquippedItems();
     const bonuses = getEquipmentBonuses(equippedItems);
+    const resonance = bonuses.resonance;
+    
     Object.entries(energyGain).forEach(([key, value]) => {
       const k = key as keyof EnergyPool;
       let gain = value || 0;
@@ -509,6 +516,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
       if (bonuses.resonance.energyBoostBonus && k === element) {
         gain = Math.floor(gain + bonuses.resonance.energyBoostBonus);
+      }
+      if (matchCount >= 4) {
+        gain += 1;
+        setTimeout(() => {
+          get().addFloatingText('风暴涌动 +1能量', 300, 230, 'thunder');
+        }, 200);
       }
       newEnergy[k] = Math.min(get().maxEnergy, currentEnergy[k] + gain);
       if (gain > 0) {
@@ -631,6 +644,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
             processChain();
           }, 300);
         } else {
+          const eqItems = getEquippedItems();
+          const eqBonuses = getEquipmentBonuses(eqItems);
+          const resonance = eqBonuses.resonance;
+          
+          let shouldGetFreeTurn = false;
+          if (resonance.freeTurnChainThreshold && totalCombo >= resonance.freeTurnChainThreshold) {
+            shouldGetFreeTurn = true;
+          }
+          
           set({
             runeGrid: grid,
             energy: newEnergy,
@@ -638,7 +660,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
             isAnimating: false,
           });
           
-          get().endTurn();
+          if (shouldGetFreeTurn) {
+            setTimeout(() => {
+              get().addFloatingText('免费回合！', 300, 250, 'thunder');
+            }, 200);
+          } else {
+            get().endTurn();
+          }
         }
       };
 
@@ -715,8 +743,59 @@ export const useGameStore = create<GameStore>((set, get) => ({
       get().addFloatingText('暴击!', 350, 120, 'thunder');
     }
 
-    const { enemyUnits: currentUnits } = get();
-    const { updatedUnits, killedUnit, finalDamage } = calculateAndApplyDamage(currentUnits, target.id, damage);
+    const resonance = eqBonuses.resonance;
+    let processedUnits = [...currentUnits];
+    let finalDamageDealt = damage;
+    let lifestealHeal = 0;
+
+    if (target.type === 'enemy') {
+      const frozenEffect = (target as Enemy).statusEffects.find(e => e.type === 'frozen');
+      if (frozenEffect) {
+        const frozenBonus = Math.floor(finalDamageDealt * 0.25);
+        finalDamageDealt += frozenBonus;
+        setTimeout(() => {
+          get().addFloatingText(`冰冻易伤 +${frozenBonus}`, 350, 170, 'cyan');
+        }, 400);
+      }
+    }
+
+    if (resonance.lifestealPercent && finalDamageDealt > 0) {
+      lifestealHeal = Math.floor(finalDamageDealt * resonance.lifestealPercent);
+    }
+
+    if (spell.id === 'fireball' && resonance.aoeBurnDamage && resonance.aoeBurnDuration) {
+      const burnEffect = createStatusEffect('burn', resonance.aoeBurnDuration, resonance.aoeBurnDamage, 'blaze_resonance');
+      processedUnits = processedUnits.map(unit => {
+        if (unit.type === 'enemy') {
+          return applyStatusEffectToEnemy(unit as Enemy, burnEffect);
+        }
+        return unit;
+      });
+    }
+
+    if (spell.element === 'water' && resonance.frozenChance && resonance.frozenDuration) {
+      if (Math.random() < resonance.frozenChance) {
+        const frozenEffect = createStatusEffect('frozen', resonance.frozenDuration, 25, 'frost_resonance');
+        processedUnits = processedUnits.map(unit => {
+          if (unit.id === target.id && unit.type === 'enemy') {
+            return applyStatusEffectToEnemy(unit as Enemy, frozenEffect);
+          }
+          return unit;
+        });
+      }
+    }
+
+    if (spell.element === 'fire' && resonance.spellRefundChance && resonance.spellRefundPercent) {
+      if (Math.random() < resonance.spellRefundChance) {
+        const refund = Math.floor(spell.cost * resonance.spellRefundPercent);
+        newEnergy[spell.element] = Math.min(get().maxEnergy, newEnergy[spell.element] + refund);
+        setTimeout(() => {
+          get().addFloatingText(`能量返还 +${refund}`, 300, 250, 'fire');
+        }, 600);
+      }
+    }
+
+    const { updatedUnits, killedUnit, finalDamage } = calculateAndApplyDamage(processedUnits, target.id, finalDamageDealt);
     
     let newSelectedTargetId = selectedTargetId;
     if (killedUnit && killedUnit.id === selectedTargetId) {
@@ -739,8 +818,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       selectedTargetId: newSelectedTargetId,
     });
     
-    const newPlayerHp = Math.min(get().playerMaxHp, get().playerHp + spell.heal);
-    if (battleRecorder && spell.heal > 0) {
+    let newPlayerHp = Math.min(get().playerMaxHp, get().playerHp + spell.heal + lifestealHeal);
+    if (battleRecorder && (spell.heal > 0 || lifestealHeal > 0)) {
       battleRecorder.setPlayerHp(newPlayerHp, 'heal');
     }
 
@@ -757,6 +836,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
       if (spell.heal > 0) {
         get().addFloatingText(`+${spell.heal}`, 200, 400, 'grass');
+      }
+      if (lifestealHeal > 0) {
+        get().addFloatingText(`汲取 +${lifestealHeal}`, 200, 430, 'purple');
+      }
+
+      if (spell.id === 'fireball' && resonance.aoeBurnDamage && resonance.aoeBurnDuration) {
+        get().addFloatingText('范围灼烧！', 400, 180, 'fire');
+      }
+
+      const frozenTarget = updatedUnits.find(u => 
+        u.id === target.id && u.statusEffects?.some(e => e.type === 'frozen')
+      );
+      if (frozenTarget) {
+        get().addFloatingText('冰冻！', 400, 180, 'water');
       }
 
       if (killedUnit) {
@@ -796,7 +889,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
         }
         get().notifyVictory(levels.find(l => l.id === get().currentLevelId)?.name || '');
       } else {
-        get().saveProgress();
+        if (resonance.doubleCastChance && Math.random() < resonance.doubleCastChance) {
+          setTimeout(() => {
+            get().addFloatingText('双重施法！', 350, 100, 'fire');
+            get().castSpell(spell);
+          }, 800);
+        } else {
+          get().saveProgress();
+        }
       }
     }, 500);
   },
@@ -997,6 +1097,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       get().addFloatingText(`+${regenAmount}`, 300, 300, 'grass');
     }
 
+    if (regenBonuses.resonance.energyShieldPerTurn && regenBonuses.resonance.energyShieldPerTurn > 0) {
+      const shieldAmount = regenBonuses.resonance.energyShieldPerTurn;
+      get().addShield(shieldAmount);
+      get().addFloatingText(`护盾 +${shieldAmount}`, 300, 280, 'cyan');
+    }
+
     if (newEnemyHp <= 0) {
       const { currentLevelId, turn: currentTurn, battleRecorder: recorder, enemy: curEnemy } = get();
       set({ battleStatus: 'victory' });
@@ -1035,6 +1141,40 @@ export const useGameStore = create<GameStore>((set, get) => ({
     let updatedEnemy = { ...enemy };
     let currentPlayerHp = playerHp;
     let currentUnits = [...enemyUnits];
+
+    const frozenEffect = updatedEnemy.statusEffects.find(e => e.type === 'frozen');
+    if (frozenEffect) {
+      get().addFloatingText('冰冻中，跳过行动', 400, 200, 'cyan');
+      
+      const newAttackIndex = (updatedEnemy.currentAttackIndex + 1) % updatedEnemy.attackPattern.length;
+      updatedEnemy.currentAttackIndex = newAttackIndex;
+      currentUnits = currentUnits.map(u => 
+        u.type === 'enemy' ? updatedEnemy : u
+      );
+      const updatedGrid = decrementDoubleEnergyTurns(runeGrid);
+      get().decrementCooldowns();
+      const nextTurn = turn + 1;
+      
+      if (battleRecorder) {
+        battleRecorder.setTurn(nextTurn);
+        battleRecorder.recordTurnStart(nextTurn);
+        battleRecorder.recordEnemyBehavior(turn, 'frozen', '冰冻中无法行动', 0, false, false, null, 0, null);
+      }
+
+      set({
+        enemy: updatedEnemy,
+        enemyUnits: currentUnits,
+        turn: nextTurn,
+        isPlayerTurn: true,
+        runeGrid: updatedGrid,
+      });
+
+      setTimeout(() => {
+        get().processTerrainEffects();
+        get().saveProgress();
+      }, 500);
+      return;
+    }
 
     const { updatedEnemy: enemyAfterBerserk, selfDamage } = processBerserkSelfDamage(updatedEnemy);
     updatedEnemy = enemyAfterBerserk;
@@ -1112,13 +1252,32 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     if (minionDamage > 0) {
-      currentPlayerHp = Math.max(0, currentPlayerHp - minionDamage);
+      const actualDamage = get().damagePlayer(minionDamage);
+      currentPlayerHp = get().playerHp;
       get().setScreenShake(true);
       setTimeout(() => get().setScreenShake(false), 300);
-      get().addFloatingText(`小怪伤害 -${minionDamage}`, 200, 380, 'purple');
+      get().addFloatingText(`小怪伤害 -${actualDamage}`, 200, 380, 'purple');
       audioManager.playPlayerHit(minionDamage);
       if (battleRecorder) {
         battleRecorder.setPlayerHp(currentPlayerHp, 'minion');
+      }
+
+      const eqItems = getEquippedItems();
+      const eqBonuses = getEquipmentBonuses(eqItems);
+      if (eqBonuses.resonance.thornsDamage && eqBonuses.resonance.thornsDamage > 0) {
+        const thornsDamage = eqBonuses.resonance.thornsDamage;
+        const currentMinions = currentUnits.filter(u => u.type === 'minion') as Minion[];
+        if (currentMinions.length > 0) {
+          const targetMinion = currentMinions[0];
+          const newMinionHp = Math.max(0, targetMinion.currentHp - thornsDamage);
+          currentUnits = currentUnits.map(u => 
+            u.id === targetMinion.id ? { ...u, currentHp: newMinionHp } : u
+          );
+          get().addFloatingText(`荆棘反伤 -${thornsDamage}`, 400, 200, 'brown');
+          if (battleRecorder) {
+            battleRecorder.recordStatusEffect('enemy', 'thorns', '荆棘反伤', 0, 0, thornsDamage);
+          }
+        }
       }
     }
 
@@ -1178,12 +1337,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     if (damageToPlayer > 0) {
-      currentPlayerHp = Math.max(0, currentPlayerHp - damageToPlayer);
+      const actualDamage = get().damagePlayer(damageToPlayer);
+      currentPlayerHp = get().playerHp;
       get().setScreenShake(true);
       setTimeout(() => get().setScreenShake(false), 300);
       audioManager.playPlayerHit(damageToPlayer);
 
-      let damageText = `-${damageToPlayer}`;
+      let damageText = `-${actualDamage}`;
       if (updatedEnemy.behaviorState.isBerserk) {
         damageText += ' (狂暴)';
       }
@@ -1194,6 +1354,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
         damageText += ' (麻痹)';
       }
       get().addFloatingText(damageText, 200, 400, 'fire');
+
+      const eqItems = getEquippedItems();
+      const eqBonuses = getEquipmentBonuses(eqItems);
+      if (eqBonuses.resonance.thornsDamage && eqBonuses.resonance.thornsDamage > 0) {
+        const thornsDamage = eqBonuses.resonance.thornsDamage;
+        const newEnemyHp = Math.max(0, updatedEnemy.currentHp - thornsDamage);
+        updatedEnemy = { ...updatedEnemy, currentHp: newEnemyHp };
+        currentUnits = currentUnits.map(u => 
+          u.type === 'enemy' ? updatedEnemy : u
+        );
+        get().addFloatingText(`荆棘反伤 -${thornsDamage}`, 400, 200, 'brown');
+        if (battleRecorder) {
+          battleRecorder.recordStatusEffect('enemy', 'thorns', '荆棘反伤', 0, 0, thornsDamage);
+          battleRecorder.setEnemyHp(newEnemyHp, updatedEnemy, 'thorns');
+        }
+      }
     }
 
     if (battleRecorder) {
@@ -1415,5 +1591,39 @@ export const useGameStore = create<GameStore>((set, get) => ({
       canCastComboSpellLogic(energy, spell) &&
       !(comboSpellCooldowns[spell.id] > 0)
     );
+  },
+
+  addShield: (amount: number) => {
+    const { playerShield } = get();
+    set({ playerShield: playerShield + amount });
+  },
+
+  damagePlayer: (damage: number): number => {
+    const { playerHp, playerShield, playerMaxHp } = get();
+    let remainingDamage = damage;
+    let actualDamage = 0;
+    let newShield = playerShield;
+    let newHp = playerHp;
+
+    if (newShield > 0) {
+      if (newShield >= remainingDamage) {
+        newShield -= remainingDamage;
+        remainingDamage = 0;
+        get().addFloatingText(`护盾 -${damage}`, 200, 420, 'cyan');
+      } else {
+        remainingDamage -= newShield;
+        get().addFloatingText(`护盾破碎 -${newShield}`, 200, 420, 'cyan');
+        newShield = 0;
+      }
+    }
+
+    if (remainingDamage > 0) {
+      actualDamage = remainingDamage;
+      newHp = Math.max(0, newHp - remainingDamage);
+    }
+
+    set({ playerHp: newHp, playerShield: newShield });
+
+    return damage;
   },
 }));

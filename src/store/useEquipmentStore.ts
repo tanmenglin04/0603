@@ -18,6 +18,8 @@ import {
   upgradeEquipment,
   rerollAffix,
   getEquipmentBonuses,
+  recastSeries,
+  getAvailableSeriesForRecast,
 } from '../utils/runeEquipment';
 import { useAchievementStore } from './useAchievementStore';
 
@@ -27,6 +29,8 @@ interface EquipmentState {
   equipped: Partial<Record<ElementType, (string | null)[]>>;
   highestLevel: number;
   selectedUpgradeItems: string[];
+  selectedRecastItemId: string | null;
+  selectedRecastMaterials: string[];
 }
 
 interface EquipmentActions {
@@ -43,6 +47,12 @@ interface EquipmentActions {
   getBonuses: () => ReturnType<typeof getEquipmentBonuses>;
   getAvailableSlots: () => number;
   syncFromLS: () => void;
+  selectRecastItem: (id: string | null) => void;
+  toggleRecastMaterial: (id: string) => void;
+  clearRecastSelect: () => void;
+  performRecast: (targetSeries: EquipmentSeries) => RuneEquipment | null;
+  canRecast: () => boolean;
+  getRecastCost: () => { gold: number; materials: number } | null;
 }
 
 export type EquipmentStore = EquipmentState & EquipmentActions;
@@ -53,6 +63,8 @@ export const useEquipmentStore = create<EquipmentStore>((set, get) => ({
   equipped: {},
   highestLevel: 1,
   selectedUpgradeItems: [],
+  selectedRecastItemId: null,
+  selectedRecastMaterials: [],
 
   load: () => {
     const data = loadEquipmentSave();
@@ -234,5 +246,93 @@ export const useEquipmentStore = create<EquipmentStore>((set, get) => ({
       equipped: data.equipped,
       highestLevel: data.highestLevel,
     });
+  },
+
+  selectRecastItem: (id) => {
+    set({ selectedRecastItemId: id, selectedRecastMaterials: [] });
+  },
+
+  toggleRecastMaterial: (id) => {
+    const { selectedRecastMaterials, selectedRecastItemId, inventory } = get();
+    if (id === selectedRecastItemId) return;
+
+    const targetItem = inventory.find((e) => e.id === selectedRecastItemId);
+    const materialItem = inventory.find((e) => e.id === id);
+    if (!targetItem || !materialItem) return;
+    if (materialItem.quality !== targetItem.quality) return;
+
+    if (selectedRecastMaterials.includes(id)) {
+      set({ selectedRecastMaterials: selectedRecastMaterials.filter((i) => i !== id) });
+    } else {
+      const cost = get().getRecastCost();
+      if (cost && selectedRecastMaterials.length < cost.materials) {
+        set({ selectedRecastMaterials: [...selectedRecastMaterials, id] });
+      }
+    }
+  },
+
+  clearRecastSelect: () => {
+    set({ selectedRecastItemId: null, selectedRecastMaterials: [] });
+  },
+
+  getRecastCost: () => {
+    const { selectedRecastItemId, inventory } = get();
+    if (!selectedRecastItemId) return null;
+    const item = inventory.find((e) => e.id === selectedRecastItemId);
+    if (!item) return null;
+    const { RECAST_SERIES_COST } = require('../types');
+    return RECAST_SERIES_COST[item.quality];
+  },
+
+  canRecast: () => {
+    const { selectedRecastItemId, selectedRecastMaterials, gold, inventory } = get();
+    if (!selectedRecastItemId) return false;
+    const cost = get().getRecastCost();
+    if (!cost) return false;
+    if (gold < cost.gold) return false;
+    if (selectedRecastMaterials.length !== cost.materials) return false;
+
+    const targetItem = inventory.find((e) => e.id === selectedRecastItemId);
+    if (!targetItem) return false;
+
+    for (const matId of selectedRecastMaterials) {
+      const mat = inventory.find((e) => e.id === matId);
+      if (!mat || mat.quality !== targetItem.quality) return false;
+    }
+
+    return true;
+  },
+
+  performRecast: (targetSeries) => {
+    if (!get().canRecast()) return null;
+
+    const { selectedRecastItemId, selectedRecastMaterials, inventory } = get();
+    const cost = get().getRecastCost();
+    if (!cost || !selectedRecastItemId) return null;
+
+    const targetItem = inventory.find((e) => e.id === selectedRecastItemId);
+    if (!targetItem) return null;
+
+    if (!lsSpendGold(cost.gold)) return null;
+
+    lsRemoveFromInventory(selectedRecastMaterials);
+
+    const newItem = recastSeries(targetItem, targetSeries);
+    lsUpdateInInventory(newItem);
+
+    try {
+      const ach = useAchievementStore.getState();
+      ach.recordEquipmentRecast(targetItem.quality);
+    } catch { /* non-critical */ }
+
+    const data = loadEquipmentSave();
+    set({
+      gold: data.gold,
+      inventory: data.inventory,
+      selectedRecastItemId: null,
+      selectedRecastMaterials: [],
+    });
+
+    return newItem;
   },
 }));

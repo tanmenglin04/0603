@@ -52,6 +52,7 @@ interface AchievementActions {
   recordEnemyKilled: (enemyId: string) => void;
   recordEquipmentAcquired: (quality: EquipmentQuality) => void;
   recordEquipmentConsumed: (quality: EquipmentQuality) => void;
+  recordEquipmentRecast: (quality: EquipmentQuality) => void;
   recordBattleWon: () => void;
   recordTowerFloorCleared: () => void;
   recordPVPWin: () => void;
@@ -152,6 +153,7 @@ export const useAchievementStore = create<AchievementState & AchievementActions>
     comboSpellsCast: {},
     enemiesKilled: {},
     equipmentAcquired: { common: 0, rare: 0, epic: 0, legendary: 0 },
+    equipmentRecast: { common: 0, rare: 0, epic: 0, legendary: 0 },
     totalBattlesWon: 0,
     totalTowerFloorsCleared: 0,
     totalPVPWins: 0,
@@ -306,6 +308,28 @@ export const useAchievementStore = create<AchievementState & AchievementActions>
       newStats.equipmentAcquired[quality] = Math.max(0, newStats.equipmentAcquired[quality] - 1);
 
       const affected = achievementsByStatKey.equipmentAcquired || [];
+      const newProgress = { ...state.progress };
+      for (const def of affected) {
+        newProgress[def.id] = computeProgressForSingle(def, newStats, state.progress[def.id]?.claimedTiers || []);
+      }
+
+      return { stats: newStats, progress: newProgress };
+    });
+
+    triggerBattlePassUpdate();
+  },
+
+  recordEquipmentRecast: (quality: EquipmentQuality) => {
+    updateAchievementStats((stats) => {
+      stats.equipmentRecast[quality] = (stats.equipmentRecast[quality] || 0) + 1;
+    });
+
+    set((state) => {
+      const newStats = { ...state.stats };
+      newStats.equipmentRecast = { ...newStats.equipmentRecast };
+      newStats.equipmentRecast[quality] = (newStats.equipmentRecast[quality] || 0) + 1;
+
+      const affected = achievementsByStatKey.equipmentRecast || [];
       const newProgress = { ...state.progress };
       for (const def of affected) {
         newProgress[def.id] = computeProgressForSingle(def, newStats, state.progress[def.id]?.claimedTiers || []);

@@ -214,3 +214,32 @@ export const getEquipmentBonuses = (
 
   return { energyBoost, spellDamage, initialEnergy, resonance };
 };
+
+export const recastSeries = (
+  equipment: RuneEquipment,
+  targetSeries: EquipmentSeries,
+): RuneEquipment => {
+  return {
+    ...equipment,
+    series: targetSeries,
+  };
+};
+
+export const getAvailableSeriesForRecast = (
+  currentSeries: EquipmentSeries,
+): EquipmentSeries[] => {
+  return ALL_SERIES.filter(s => s !== currentSeries);
+};
+
+export const getActiveResonanceEffects = (
+  equippedItems: RuneEquipment[],
+): ResonanceEffect => {
+  const activeResonances = getActiveResonances(equippedItems);
+  const combined: ResonanceEffect = {};
+  
+  for (const r of activeResonances) {
+    Object.assign(combined, r.effect);
+  }
+  
+  return combined;
+};

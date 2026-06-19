@@ -2,7 +2,7 @@ export type ElementType = 'fire' | 'water' | 'grass' | 'thunder';
 
 export type ComboElementType = 'fire+grass' | 'water+thunder' | 'fire+water';
 
-export type StatusEffectType = 'burn' | 'paralyze' | 'resistance_down';
+export type StatusEffectType = 'burn' | 'paralyze' | 'resistance_down' | 'frozen' | 'thorns' | 'regen';
 
 export type TileType = 'normal' | 'obstacle' | 'frozen' | 'double_energy';
 
@@ -205,6 +205,7 @@ export interface GameState {
   currentLevelId: number | null;
   playerHp: number;
   playerMaxHp: number;
+  playerShield: number;
   energy: EnergyPool;
   maxEnergy: number;
   gridSize: number;
@@ -271,6 +272,8 @@ export interface GameActions {
   processTerrainEffects: () => void;
   saveCurrentReplay: () => boolean;
   getLastReplay: () => BattleReplayV2 | null;
+  addShield: (amount: number) => void;
+  damagePlayer: (damage: number) => number;
 }
 
 export type GameStore = GameState & GameActions;
@@ -465,12 +468,18 @@ export const STATUS_EFFECT_NAMES: Record<StatusEffectType, string> = {
   burn: '灼烧',
   paralyze: '麻痹',
   resistance_down: '抗性降低',
+  frozen: '冰冻',
+  thorns: '荆棘',
+  regen: '回复',
 };
 
 export const STATUS_EFFECT_ICONS: Record<StatusEffectType, string> = {
   burn: '🔥',
   paralyze: '⚡',
   resistance_down: '💨',
+  frozen: '❄️',
+  thorns: '🌵',
+  regen: '💚',
 };
 
 export const GRID_SIZE = 6;
@@ -519,6 +528,16 @@ export type AffixType = 'energy_boost' | 'spell_damage' | 'initial_energy';
 
 export type EquipmentSeries = 'blaze' | 'frost' | 'storm' | 'earth';
 
+export type ResonanceEffectType = 
+  | 'aoe_burn'
+  | 'free_turn_on_chain'
+  | 'frozen_on_spell'
+  | 'thorns_aura'
+  | 'spell_refund'
+  | 'double_cast_chance'
+  | 'energy_shield'
+  | 'lifesteal';
+
 export interface ResonanceEffect {
   spellDamageBonus?: number;
   energyBoostBonus?: number;
@@ -526,6 +545,17 @@ export interface ResonanceEffect {
   hpRegenPerTurn?: number;
   critChance?: number;
   damageMultiplier?: number;
+  aoeBurnDamage?: number;
+  aoeBurnDuration?: number;
+  freeTurnChainThreshold?: number;
+  frozenChance?: number;
+  frozenDuration?: number;
+  thornsDamage?: number;
+  spellRefundChance?: number;
+  spellRefundPercent?: number;
+  doubleCastChance?: number;
+  energyShieldPerTurn?: number;
+  lifestealPercent?: number;
 }
 
 export interface SeriesResonanceConfig {
@@ -636,46 +666,48 @@ export const SERIES_BG: Record<EquipmentSeries, string> = {
   earth: 'bg-green-500/20 border-green-500/50',
 };
 
+export const ALL_EQUIPMENT_SERIES: EquipmentSeries[] = ['blaze', 'frost', 'storm', 'earth'];
+
 export const SERIES_RESONANCE: SeriesResonanceConfig[] = [
   {
     series: 'blaze',
     name: '烈焰系列',
     icon: '🔥',
     color: '#ff6b35',
-    piece2: { spellDamageBonus: 15 },
-    piece4: { spellDamageBonus: 35, damageMultiplier: 0.15, critChance: 0.1 },
-    piece2Desc: '法术伤害+15%',
-    piece4Desc: '法术伤害+35%，全伤害+15%，暴击率+10%',
+    piece2: { spellDamageBonus: 15, spellRefundChance: 0.2, spellRefundPercent: 0.5 },
+    piece4: { spellDamageBonus: 35, aoeBurnDamage: 5, aoeBurnDuration: 2, doubleCastChance: 0.15 },
+    piece2Desc: '法术伤害+15%，火系法术20%概率返还50%能量消耗',
+    piece4Desc: '法术伤害+35%，火球术附带范围灼烧（全体每回合5点伤害，持续2回合），15%概率双重施法',
   },
   {
     series: 'frost',
     name: '寒冰系列',
     icon: '❄️',
     color: '#4fc3f7',
-    piece2: { energyBoostBonus: 2 },
-    piece4: { energyBoostBonus: 5, initialEnergyBonus: 3 },
-    piece2Desc: '消除能量+2',
-    piece4Desc: '消除能量+5，初始能量+3',
+    piece2: { energyBoostBonus: 2, frozenChance: 0.3, frozenDuration: 1 },
+    piece4: { energyBoostBonus: 5, initialEnergyBonus: 3, frozenChance: 0.5, frozenDuration: 2 },
+    piece2Desc: '消除能量+2，水系法术30%概率冰冻敌人1回合（无法行动）',
+    piece4Desc: '消除能量+5，初始能量+3，水系法术50%概率冰冻敌人2回合，冰冻持续期间受到伤害+25%',
   },
   {
     series: 'storm',
     name: '风暴系列',
     icon: '⛈️',
     color: '#ab47bc',
-    piece2: { initialEnergyBonus: 3 },
-    piece4: { initialEnergyBonus: 6, critChance: 0.15 },
-    piece2Desc: '初始能量+3',
-    piece4Desc: '初始能量+6，暴击率+15%',
+    piece2: { initialEnergyBonus: 3, energyBoostBonus: 1 },
+    piece4: { initialEnergyBonus: 6, critChance: 0.15, freeTurnChainThreshold: 2 },
+    piece2Desc: '初始能量+3，每次消除≥4个符文额外获得1点能量',
+    piece4Desc: '初始能量+6，暴击率+15%，每次连锁消除（≥2连）额外获得一次免费回合',
   },
   {
     series: 'earth',
     name: '大地系列',
     icon: '🌍',
     color: '#66bb6a',
-    piece2: { hpRegenPerTurn: 5 },
-    piece4: { hpRegenPerTurn: 12, damageMultiplier: 0.1, spellDamageBonus: 20 },
-    piece2Desc: '每回合恢复5点生命',
-    piece4Desc: '每回合恢复12点生命，全伤害+10%，法术伤害+20%',
+    piece2: { hpRegenPerTurn: 5, thornsDamage: 8 },
+    piece4: { hpRegenPerTurn: 12, energyShieldPerTurn: 15, lifestealPercent: 0.1 },
+    piece2Desc: '每回合恢复5点生命，受到伤害时反弹8点伤害',
+    piece4Desc: '每回合恢复12点生命，每回合获得15点护盾，造成伤害的10%转化为生命值',
   },
 ];
 
@@ -692,6 +724,13 @@ export const REROLL_COST: Record<EquipmentQuality, number> = {
   rare: 120,
   epic: 250,
   legendary: 500,
+};
+
+export const RECAST_SERIES_COST: Record<EquipmentQuality, { gold: number; materials: number }> = {
+  common: { gold: 100, materials: 1 },
+  rare: { gold: 250, materials: 2 },
+  epic: { gold: 500, materials: 3 },
+  legendary: { gold: 1000, materials: 4 },
 };
 
 export const SLOT_UNLOCK_THRESHOLDS = [
@@ -2371,6 +2410,7 @@ export interface AchievementStats {
   comboSpellsCast: Record<string, number>;
   enemiesKilled: Record<string, number>;
   equipmentAcquired: Record<EquipmentQuality, number>;
+  equipmentRecast: Record<EquipmentQuality, number>;
   totalBattlesWon: number;
   totalTowerFloorsCleared: number;
   totalPVPWins: number;

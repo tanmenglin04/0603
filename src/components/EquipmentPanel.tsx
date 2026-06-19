@@ -12,8 +12,10 @@ import {
   SERIES_ICONS,
   SERIES_COLORS,
   SERIES_RESONANCE,
+  RECAST_SERIES_COST,
+  ALL_EQUIPMENT_SERIES,
 } from '../types';
-import { canUpgrade, getActiveResonances, getSeriesPieceCount } from '../utils/runeEquipment';
+import { canUpgrade, getActiveResonances, getSeriesPieceCount, getAvailableSeriesForRecast } from '../utils/runeEquipment';
 import EquipmentCard from './EquipmentCard';
 import { Coins, ArrowLeft, Package, Wand2, Sparkles } from 'lucide-react';
 
@@ -63,6 +65,8 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ onBack }) => {
     equipped,
     highestLevel,
     selectedUpgradeItems,
+    selectedRecastItemId,
+    selectedRecastMaterials,
     load,
     equip,
     unequip,
@@ -71,12 +75,20 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ onBack }) => {
     performUpgrade,
     getAvailableSlots,
     syncFromLS,
+    selectRecastItem,
+    toggleRecastMaterial,
+    clearRecastSelect,
+    performRecast,
+    canRecast,
+    getRecastCost,
   } = useEquipmentStore();
 
   const [activeTab, setActiveTab] = useState<TabKey>('slots');
   const [elementFilter, setElementFilter] = useState<ElementType | 'all'>('all');
   const [qualityFilter, setQualityFilter] = useState<EquipmentQuality | 'all'>('all');
   const [seriesFilter, setSeriesFilter] = useState<EquipmentSeries | 'all'>('all');
+  const [showRecastModal, setShowRecastModal] = useState(false);
+  const [targetSeries, setTargetSeries] = useState<EquipmentSeries | null>(null);
 
   useEffect(() => {
     load();
@@ -175,6 +187,64 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ onBack }) => {
   const handleUpgrade = () => {
     performUpgrade();
   };
+
+  const handleOpenRecast = (itemId: string) => {
+    selectRecastItem(itemId);
+    setTargetSeries(null);
+    setShowRecastModal(true);
+  };
+
+  const handleCloseRecast = () => {
+    clearRecastSelect();
+    setTargetSeries(null);
+    setShowRecastModal(false);
+  };
+
+  const handleSelectTargetSeries = (series: EquipmentSeries) => {
+    setTargetSeries(series);
+    clearRecastSelect();
+    const item = getItemById(selectedRecastItemId!);
+    if (item) {
+      selectRecastItem(item.id);
+    }
+  };
+
+  const handlePerformRecast = () => {
+    if (selectedRecastItemId && targetSeries) {
+      performRecast(targetSeries);
+      handleCloseRecast();
+    }
+  };
+
+  const selectedRecastItem = useMemo(() => {
+    if (!selectedRecastItemId) return null;
+    return getItemById(selectedRecastItemId);
+  }, [selectedRecastItemId, inventory]);
+
+  const availableTargetSeries = useMemo(() => {
+    if (!selectedRecastItem) return [];
+    return getAvailableSeriesForRecast(selectedRecastItem);
+  }, [selectedRecastItem]);
+
+  const recastCost = useMemo(() => {
+    if (!selectedRecastItem || !targetSeries) return null;
+    return getRecastCost(selectedRecastItem, targetSeries);
+  }, [selectedRecastItem, targetSeries, getRecastCost]);
+
+  const canPerformRecast = useMemo(() => {
+    if (!selectedRecastItem || !targetSeries) return false;
+    return canRecast(selectedRecastItem, targetSeries);
+  }, [selectedRecastItem, targetSeries, canRecast]);
+
+  const availableMaterials = useMemo(() => {
+    if (!selectedRecastItem) return [];
+    return inventory.filter(
+      (item) =>
+        item.id !== selectedRecastItemId &&
+        item.quality === selectedRecastItem.quality &&
+        !Object.values(equipped).flat().includes(item.id)
+    );
+  }, [selectedRecastItem, inventory, equipped, selectedRecastItemId]);
 
   const renderSlotsTab = () => (
     <div className="space-y-4">
@@ -347,6 +417,7 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ onBack }) => {
               onEquip={() => handleSmartEquip(item.id)}
               onSell={() => useEquipmentStore.getState().sell(item.id)}
               onReroll={(affixIndex) => useEquipmentStore.getState().reroll(item.id, affixIndex)}
+              onRecast={() => handleOpenRecast(item.id)}
             />
           ))}
         </div>
@@ -661,6 +732,172 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ onBack }) => {
     </div>
   );
 
+  const renderRecastModal = () => {
+    if (!showRecastModal || !selectedRecastItem) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+        <div className="bg-game-card rounded-2xl border-2 border-purple-500/50 w-full max-w-lg max-h-[90vh] overflow-auto">
+          <div className="p-4 border-b border-gray-700">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-purple-200">重铸套装</h3>
+              <button
+                onClick={handleCloseRecast}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              重铸后装备将更换为目标系列，原有词缀数值完全保留
+            </p>
+          </div>
+
+          <div className="p-4 space-y-4">
+            <div>
+              <div className="text-sm text-gray-300 mb-2">当前装备</div>
+              <EquipmentCard equipment={selectedRecastItem} compact showActions={false} />
+            </div>
+
+            <div>
+              <div className="text-sm text-gray-300 mb-2">选择目标系列</div>
+              <div className="grid grid-cols-2 gap-2">
+                {availableTargetSeries.map((series) => (
+                  <button
+                    key={series}
+                    onClick={() => handleSelectTargetSeries(series)}
+                    className={`p-3 rounded-lg border-2 transition-all ${
+                      targetSeries === series
+                        ? 'border-purple-400 bg-purple-900/40'
+                        : 'border-gray-600/50 bg-gray-800/40 hover:border-gray-500'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{SERIES_ICONS[series]}</span>
+                      <span
+                        className="font-bold text-sm"
+                        style={{ color: SERIES_COLORS[series] }}
+                      >
+                        {SERIES_NAMES[series]}系列
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {targetSeries && recastCost && (
+              <div className="bg-gray-800/60 rounded-lg p-3">
+                <div className="text-sm font-bold text-purple-200 mb-2">重铸消耗</div>
+                <div className="space-y-1 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">金币</span>
+                    <span className={gold >= recastCost.gold ? 'text-yellow-400' : 'text-red-400'}>
+                      {recastCost.gold} 💰
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">同品质材料</span>
+                    <span
+                      className={
+                        selectedRecastMaterials.length >= recastCost.materials
+                          ? 'text-green-400'
+                          : 'text-red-400'
+                      }
+                    >
+                      {selectedRecastMaterials.length} / {recastCost.materials} 件
+                    </span>
+                  </div>
+                </div>
+
+                {recastCost.materials > 0 && (
+                  <div className="mt-3">
+                    <div className="text-xs text-gray-400 mb-2">
+                      选择材料（{selectedRecastMaterials.length}/{recastCost.materials}）
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 max-h-32 overflow-auto">
+                      {availableMaterials.slice(0, 12).map((material) => {
+                        const isSelected = selectedRecastMaterials.includes(material.id);
+                        return (
+                          <button
+                            key={material.id}
+                            onClick={() => {
+                              if (isSelected || selectedRecastMaterials.length < recastCost.materials) {
+                                toggleRecastMaterial(material.id);
+                              }
+                            }}
+                            disabled={!isSelected && selectedRecastMaterials.length >= recastCost.materials}
+                            className={`p-1.5 rounded border text-xs transition-all ${
+                              isSelected
+                                ? 'border-green-400 bg-green-900/30'
+                                : 'border-gray-600/50 bg-gray-800/40 hover:border-gray-500'
+                            } ${
+                              !isSelected && selectedRecastMaterials.length >= recastCost.materials
+                                ? 'opacity-50 cursor-not-allowed'
+                                : ''
+                            }`}
+                          >
+                            <div className="text-sm">{ELEMENT_ICONS[material.element]}</div>
+                            <div
+                              className="text-[10px] truncate"
+                              style={{ color: QUALITY_COLORS[material.quality] }}
+                            >
+                              {QUALITY_NAMES[material.quality]}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {targetSeries && (
+              <div className="bg-gray-800/40 rounded-lg p-3">
+                <div className="text-xs text-gray-400 mb-2">重铸预览</div>
+                <div className="flex items-center gap-2 text-sm">
+                  <span style={{ color: SERIES_COLORS[selectedRecastItem.series] }}>
+                    {SERIES_ICONS[selectedRecastItem.series]} {SERIES_NAMES[selectedRecastItem.series]}
+                  </span>
+                  <span className="text-gray-500">→</span>
+                  <span style={{ color: SERIES_COLORS[targetSeries] }}>
+                    {SERIES_ICONS[targetSeries]} {SERIES_NAMES[targetSeries]}
+                  </span>
+                </div>
+                <div className="text-xs text-gray-400 mt-1">
+                  ✅ 所有词缀数值将完全保留
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="p-4 border-t border-gray-700">
+            <div className="flex gap-3">
+              <button
+                onClick={handleCloseRecast}
+                className="flex-1 py-2.5 rounded-lg bg-gray-700/60 text-gray-300 hover:bg-gray-600/70 transition-colors text-sm font-semibold"
+              >
+                取消
+              </button>
+              <button
+                onClick={handlePerformRecast}
+                disabled={!canPerformRecast}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-colors ${
+                  canPerformRecast
+                    ? 'bg-purple-600 hover:bg-purple-500 text-white'
+                    : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                确认重铸
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen w-full overflow-auto p-4">
       <div className="max-w-2xl mx-auto">
@@ -704,6 +941,7 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ onBack }) => {
           {activeTab === 'resonance' && renderResonanceTab()}
         </div>
       </div>
+      {renderRecastModal()}
     </div>
   );
 };
