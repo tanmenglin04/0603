@@ -511,8 +511,22 @@ export const processStatusEffects = (enemy: Enemy): {
   const effectsExpired: StatusEffect[] = [];
   
   const newEffects = enemy.statusEffects.map(effect => {
-    if (effect.type === 'burn') {
-      damageDealt += effect.value;
+    switch (effect.type) {
+      case 'burn':
+        damageDealt += effect.value;
+        break;
+      case 'frozen':
+        break;
+      case 'regen':
+        break;
+      case 'thorns':
+        break;
+      case 'paralyze':
+        break;
+      case 'resistance_down':
+        break;
+      default:
+        break;
     }
     return { ...effect, duration: effect.duration - 1 };
   }).filter(effect => {

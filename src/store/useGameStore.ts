@@ -892,6 +892,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (resonance.doubleCastChance && Math.random() < resonance.doubleCastChance) {
           setTimeout(() => {
             get().addFloatingText('双重施法！', 350, 100, 'fire');
+            const currentEnergy = { ...get().energy };
+            currentEnergy[spell.element] = Math.min(
+              get().maxEnergy,
+              currentEnergy[spell.element] + spell.cost,
+            );
+            set({ energy: currentEnergy });
             get().castSpell(spell);
           }, 800);
         } else {
@@ -1065,11 +1071,34 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { enemy, battleStatus, battleRecorder } = get();
     if (!enemy || battleStatus !== 'playing') return;
 
-    const { updatedEnemy, damageDealt } = processStatusEffects(enemy);
+    const { updatedEnemy, damageDealt, effectsExpired } = processStatusEffects(enemy);
     
     if (damageDealt > 0) {
       get().addFloatingText(`灼烧 -${damageDealt}`, 400, 150, 'fire');
     }
+
+    effectsExpired.forEach(expired => {
+      const nameMap: Record<string, string> = {
+        burn: '灼烧',
+        paralyze: '麻痹',
+        resistance_down: '抗性降低',
+        frozen: '冰冻',
+        thorns: '荆棘',
+        regen: '回复',
+      };
+      const colorMap: Record<string, string> = {
+        burn: 'fire',
+        paralyze: 'yellow',
+        resistance_down: 'purple',
+        frozen: 'cyan',
+        thorns: 'brown',
+        regen: 'grass',
+      };
+      get().addFloatingText(
+        `${nameMap[expired.type] || expired.type} 消退`,
+        400, 180, colorMap[expired.type] || 'gray',
+      );
+    });
 
     const newEnemyHp = Math.max(0, updatedEnemy.currentHp - damageDealt);
     const finalEnemy = { ...updatedEnemy, currentHp: newEnemyHp };
